@@ -33,7 +33,7 @@
             #print-container {
                 display: flex;
                 flex-direction: column;
-                min-height: 270mm; /* 16曲以上の時は伸びるようにmin-heightに変更 */
+                /* JS側で 15曲以下の場合は 270mm に固定し、16曲以上は auto にする */
                 width: 100%;
             }
             .print-header { flex-shrink: 0; margin-bottom: 5mm; }
@@ -54,8 +54,8 @@
             display: grid;
             grid-template-columns: 8% 57% 9% 10% 8% 8%;
             grid-template-rows: 1fr auto; 
-            flex-grow: 1;
-            min-height: 16mm; 
+            flex-grow: 1; /* 高さ固定時に均等に伸びる */
+            min-height: 15mm; 
             page-break-inside: avoid;
             border-bottom: 1px solid #444;
         }
@@ -329,10 +329,15 @@
                 return secondsToTime(totalSeconds);
             };
 
+            // 曲数の計算（15曲を超えるかどうか）
+            const totalPrintCount = mainCount + extraCount;
+            const isMultiPage = totalPrintCount >= 16;
+            // プレビューの親枠の高さ (16曲以上の場合は2ページ分の高さを確保)
+            const previewHeightPx = isMultiPage ? 2244 : 1122;
+
             // 15曲オーバー警告付きプリント
             const handlePrint = () => {
-                const totalPrintCount = mainCount + extraCount;
-                if (totalPrintCount >= 16) {
+                if (isMultiPage) {
                     alert("16曲以上は2枚になります。");
                 }
                 window.print();
@@ -602,68 +607,69 @@
                         {/* --- 画面上の印刷プレビュー (オートスケール対応) --- */}
                         <div className="bg-gray-200 p-2 md:p-4 rounded-xl shadow-inner mb-6 flex flex-col items-center overflow-hidden">
                             <p className="text-center text-xs md:text-sm font-bold text-gray-500 mb-2 w-full">
-                                <i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー
+                                <i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー {isMultiPage && <span className="text-red-500 ml-2">※2枚になります</span>}
                             </p>
                             
                             {/* スケール基準となるラッパー */}
-                            <div ref={previewWrapperRef} className="w-full flex justify-center">
-                                {/* A4のアスペクト比を維持しつつ、スケールで縮小させる箱 */}
+                            <div ref={previewWrapperRef} className="w-full flex justify-center overflow-visible">
+                                {/* 16曲以上の場合は高さを2枚分(2244px)確保してはみ出しを防ぐ */}
                                 <div style={{ 
                                     width: `${794 * previewScale}px`, 
-                                    height: `${1122 * previewScale}px`, 
+                                    height: `${previewHeightPx * previewScale}px`, 
                                     position: 'relative' 
                                 }}>
                                     {/* 実際のA4サイズのレイアウト (transformで縮小表示) */}
-                                    <div className="bg-white shadow-md text-black font-sans absolute top-0 left-0" 
+                                    <div className="bg-white shadow-md text-black font-sans absolute top-0 left-0 flex flex-col" 
                                          style={{ 
                                              width: '794px',   /* A4幅 210mm の近似ピクセル */
-                                             height: '1122px', /* A4高 297mm の近似ピクセル */
+                                             height: isMultiPage ? 'auto' : '1122px', /* 15曲までは1枚(1122px)に固定、16曲以上はautoで伸びる */
+                                             minHeight: '1122px',
                                              padding: '38px',  /* 余白 10mm の近似ピクセル */
                                              transformOrigin: 'top left',
                                              transform: `scale(${previewScale})` 
                                          }}>
-                                        <div className="text-center border-b-4 border-black pb-2 mb-4 h-full flex flex-col">
+                                        <div className="text-center border-b-4 border-black pb-2 mb-4 flex-shrink-0">
                                             {/* タイトルを text-2xl に縮小 */}
-                                            <h1 className="text-2xl font-black tracking-widest uppercase flex-shrink-0">LIVE SETLIST - CHICAGO</h1>
-                                            <div className="flex justify-between mt-2 font-bold text-lg px-2 flex-shrink-0">
+                                            <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
+                                            <div className="flex justify-between mt-2 font-bold text-lg px-2">
                                                 <div>本番曲のTotal Time: {calculateTotalTime()}</div>
                                                 <div>Date: ___ / ___ / ______</div>
                                             </div>
+                                        </div>
                                             
-                                            {/* メインテーブル領域 */}
-                                            <div className="flex flex-col border-2 border-black flex-grow mt-4">
-                                                {/* ヘッダー */}
-                                                <div className="print-grid-header flex-shrink-0">
-                                                    <div>#</div>
-                                                    <div>楽曲名</div>
-                                                    <div>Key</div>
-                                                    <div>Harp</div>
-                                                    <div>BPM</div>
-                                                    <div>Time</div>
-                                                </div>
-
-                                                {/* データ行 */}
-                                                {setlist.slice(0, mainCount + extraCount).map((song, i) => {
-                                                    const isExtra = i >= mainCount;
-                                                    return (
-                                                        <div key={i} className={`print-grid-row ${isExtra ? 'bg-gray-50 text-gray-600 italic print-extra' : ''}`}>
-                                                            <div className="pg-no">{isExtra ? '予' : i + 1}</div>
-                                                            <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
-                                                            <div className="pg-key">{song.Key}</div>
-                                                            <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
-                                                            <div className="pg-bpm">{song.BPM}</div>
-                                                            <div className="pg-time">{song.Time || song.時間}</div>
-                                                            
-                                                            {/* 備考（下段フル幅） */}
-                                                            {(song["備考・演奏指示"] || song.備考) && (
-                                                                <div className="pg-memo">
-                                                                    &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+                                        {/* メインテーブル領域 (15曲以下なら flex-grow で高さいっぱいに伸びる) */}
+                                        <div className="flex flex-col border-2 border-black flex-grow">
+                                            {/* ヘッダー */}
+                                            <div className="print-grid-header flex-shrink-0">
+                                                <div>#</div>
+                                                <div>楽曲名</div>
+                                                <div>Key</div>
+                                                <div>Harp</div>
+                                                <div>BPM</div>
+                                                <div>Time</div>
                                             </div>
+
+                                            {/* データ行 */}
+                                            {setlist.slice(0, mainCount + extraCount).map((song, i) => {
+                                                const isExtra = i >= mainCount;
+                                                return (
+                                                    <div key={i} className={`print-grid-row ${isExtra ? 'bg-gray-50 text-gray-600 italic print-extra' : ''}`}>
+                                                        <div className="pg-no">{isExtra ? '予' : i + 1}</div>
+                                                        <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
+                                                        <div className="pg-key">{song.Key}</div>
+                                                        <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
+                                                        <div className="pg-bpm">{song.BPM}</div>
+                                                        <div className="pg-time">{song.Time || song.時間}</div>
+                                                        
+                                                        {/* 備考（下段フル幅） */}
+                                                        {(song["備考・演奏指示"] || song.備考) && (
+                                                            <div className="pg-memo">
+                                                                &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -672,7 +678,7 @@
                     </div>
 
                     {/* --- 実際の印刷用 A4フルレイアウト (画面上では隠れ、印刷時のみ展開) --- */}
-                    <div className="print-only flex-col w-full bg-white text-black font-sans" id="print-container">
+                    <div className="print-only flex-col w-full bg-white text-black font-sans" id="print-container" style={{ height: isMultiPage ? 'auto' : '270mm' }}>
                         <div className="print-header text-center border-b-4 border-black pb-2">
                             {/* タイトルを text-2xl に縮小 */}
                             <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
