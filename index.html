@@ -316,9 +316,16 @@
                 setEditingNoteIndex(null);
             };
 
+            // 本番曲のみのトータルタイム
             const calculateTotalTime = () => {
                 const mainSongs = setlist.slice(0, mainCount);
                 const totalSeconds = mainSongs.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
+                return secondsToTime(totalSeconds);
+            };
+
+            // 選択された全曲のトータルタイム
+            const calculateAllSelectedTime = () => {
+                const totalSeconds = setlist.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
                 return secondsToTime(totalSeconds);
             };
 
@@ -337,6 +344,11 @@
                     <div className="font-bold text-gray-700 flex items-center text-sm md:text-base">
                         <i className="fas fa-music mr-2 text-red-600"></i>
                         現在 {setlist.length} 曲選択中
+                        {setlist.length > 0 && (
+                            <span className="ml-2 px-2 py-0.5 bg-red-50 border border-red-200 text-red-600 rounded-md text-xs md:text-sm shadow-sm">
+                                計 {calculateAllSelectedTime()}
+                            </span>
+                        )}
                     </div>
                     <div className="flex space-x-3 md:space-x-4">
                         <div className="flex items-center">
