@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CHICAGO Setlist Builder</title>
-    <!-- ES-335デザインのファビコン (チェリーレッド背景に白抜きの335) -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23991b1b%22/><text x=%2250%22 y=%2268%22 font-family=%22Impact, Arial, sans-serif%22 font-size=%2250%22 text-anchor=%22middle%22 fill=%22%23ffffff%22>335</text></svg>">
+    <!-- 緑がかったネイビー背景に淡いゴールドの「DDM」ファビコン -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231A2B3C%22/><text x=%2250%22 y=%2265%22 font-family=%22Impact, Arial, sans-serif%22 font-size=%2238%22 text-anchor=%22middle%22 fill=%22%23D8C38E%22>DDM</text></svg>">
     
     <!-- Tailwind CSS (デザイン用) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -155,10 +155,10 @@
                 // 列名が何であれ、特定の位置（C列、F列など）のデータを強制取得するフォールバック
                 obj['楽曲名'] = obj['楽曲名'] || obj['曲名'] || values[0] || '';
                 obj['Key'] = obj['Key'] || obj['キー'] || values[1] || '';
-                obj['Time'] = obj['Time'] || obj['時間'] || values[2] || ''; // C列を時間として取得
+                obj['Time'] = obj['Time'] || obj['時間'] || values[2] || ''; 
                 obj['Harp (Pos)'] = obj['Harp (Pos)'] || obj['Harp'] || obj['ハーモニカ'] || values[3] || '';
                 obj['備考・演奏指示'] = obj['備考・演奏指示'] || obj['備考'] || obj['指示'] || values[4] || '';
-                obj['BPM'] = obj['BPM'] || obj['テンポ'] || values[5] || ''; // F列をBPMとして取得
+                obj['BPM'] = obj['BPM'] || obj['テンポ'] || values[5] || ''; 
                 
                 return obj;
             });
@@ -189,15 +189,37 @@
             const [mainCount, setMainCount] = useState(10);
             const [extraCount, setExtraCount] = useState(3);
             const [toastMessage, setToastMessage] = useState('');
+            const [previewScale, setPreviewScale] = useState(1);
             
             // モーダル管理
             const [showHelp, setShowHelp] = useState(false);
             const [editingNoteIndex, setEditingNoteIndex] = useState(null); // 備考欄編集モーダル用
             const [tempNoteText, setTempNoteText] = useState("");
 
-            // ドラッグ＆ドロップ用参照（PC用）
+            // 参照用
             const dragItem = useRef(null);
             const dragOverItem = useRef(null);
+            const previewWrapperRef = useRef(null);
+
+            // プレビューのスケールを画面幅にフィットさせる
+            useEffect(() => {
+                const updateScale = () => {
+                    if (activeTab === 'preview' && previewWrapperRef.current) {
+                        const wrapperWidth = previewWrapperRef.current.clientWidth;
+                        const a4WidthPx = 794; // 210mmの近似ピクセル値
+                        if (wrapperWidth < a4WidthPx) {
+                            setPreviewScale(wrapperWidth / a4WidthPx);
+                        } else {
+                            setPreviewScale(1);
+                        }
+                    }
+                };
+                
+                // タブ切り替え直後にDOMがレンダリングされるのを少し待ってから計算
+                setTimeout(updateScale, 10);
+                window.addEventListener('resize', updateScale);
+                return () => window.removeEventListener('resize', updateScale);
+            }, [activeTab]);
 
             // 初回読み込み（GitHub上の master_data.csv を自動フェッチ）
             useEffect(() => {
@@ -211,7 +233,6 @@
                         setMasterData(data.length > 0 ? data : FALLBACK_DATA);
                     })
                     .catch(() => {
-                        // ローカル実行時やファイル未設置時はフォールバックを使用
                         setMasterData(FALLBACK_DATA);
                     });
             }, []);
@@ -277,59 +298,58 @@
                 return secondsToTime(totalSeconds);
             };
 
-            // 共通コンポーネント：曲数設定
+            // 共通コンポーネント：曲数設定 (コンパクト化)
             const renderCountSettings = () => (
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="font-bold text-gray-700 flex items-center">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 md:p-4 mb-4 flex flex-col md:flex-row items-center justify-between gap-2">
+                    <div className="font-bold text-gray-700 flex items-center text-sm md:text-base">
                         <i className="fas fa-music mr-2 text-red-600"></i>
                         現在 {setlist.length} 曲選択中
                     </div>
                     <div className="flex space-x-4">
                         <div className="flex items-center">
-                            <label className="text-sm font-bold text-gray-600 mr-2">本番枠:</label>
-                            <input type="number" min="1" max="30" value={mainCount} onChange={(e) => setMainCount(Number(e.target.value))} className="w-16 px-2 py-1 border rounded-lg text-center font-bold text-red-600 focus:ring-2 focus:ring-red-200" />
+                            <label className="text-xs md:text-sm font-bold text-gray-600 mr-1">本番枠:</label>
+                            <input type="number" min="1" max="30" value={mainCount} onChange={(e) => setMainCount(Number(e.target.value))} className="w-12 md:w-16 px-1 py-0.5 md:py-1 border rounded text-center font-bold text-red-600 focus:ring-2 focus:ring-red-200" />
                         </div>
                         <div className="flex items-center">
-                            <label className="text-sm font-bold text-gray-600 mr-2">予備枠:</label>
-                            <input type="number" min="0" max="10" value={extraCount} onChange={(e) => setExtraCount(Number(e.target.value))} className="w-16 px-2 py-1 border rounded-lg text-center font-bold text-gray-600 focus:ring-2 focus:ring-red-200" />
+                            <label className="text-xs md:text-sm font-bold text-gray-600 mr-1">予備枠:</label>
+                            <input type="number" min="0" max="10" value={extraCount} onChange={(e) => setExtraCount(Number(e.target.value))} className="w-12 md:w-16 px-1 py-0.5 md:py-1 border rounded text-center font-bold text-gray-600 focus:ring-2 focus:ring-red-200" />
                         </div>
                     </div>
                 </div>
             );
 
-            // --- タブ1: 楽曲選択 (スマホ最適化) ---
+            // --- タブ1: 楽曲選択 (超コンパクト化) ---
             const renderSearchTab = () => (
                 <div className="animate-fade-in print-hidden">
                     {renderCountSettings()}
                     
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="bg-red-50 px-4 py-3 border-b border-red-100 flex justify-between items-center">
-                            <h2 className="text-sm font-bold text-red-800">マスターデータから選ぶ</h2>
-                            <span className="text-xs text-red-600">※タップして追加/削除</span>
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="bg-red-50 px-3 py-2 border-b border-red-100 flex justify-between items-center">
+                            <h2 className="text-xs md:text-sm font-bold text-red-800">マスターデータから選ぶ</h2>
+                            <span className="text-[10px] md:text-xs text-red-600">※タップして追加/削除</span>
                         </div>
                         
-                        {/* スマホで12曲ほど見える高さ（約60vh）に設定 */}
-                        <div className="overflow-y-auto" style={{ maxHeight: '60vh' }}>
+                        <div className="overflow-y-auto" style={{ maxHeight: '65vh' }}>
                             <ul className="divide-y divide-gray-100">
                                 {masterData.map((song) => {
                                     const isSelected = setlist.some(s => s.id === song.id);
                                     return (
                                         <li key={song.id} 
                                             onClick={() => toggleSong(song)}
-                                            className={`p-4 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-red-50' : 'hover:bg-gray-50'}`}
+                                            className={`px-3 py-1.5 md:p-3 flex items-center justify-between cursor-pointer transition-colors ${isSelected ? 'bg-red-50' : 'hover:bg-gray-50'}`}
                                         >
-                                            <div className="flex-1 pr-4">
-                                                <div className={`font-bold text-lg ${isSelected ? 'text-red-700' : 'text-gray-800'}`}>
+                                            <div className="flex-1 pr-2">
+                                                <div className={`font-bold text-sm md:text-base ${isSelected ? 'text-red-700' : 'text-gray-800'}`}>
                                                     {song.楽曲名 || song.曲名}
                                                 </div>
                                             </div>
                                             <div>
                                                 {isSelected ? (
-                                                    <button className="px-4 py-2 bg-gray-200 text-gray-600 font-bold rounded-lg text-sm flex items-center shadow-inner">
+                                                    <button className="px-2 py-1 md:px-3 bg-gray-200 text-gray-600 font-bold rounded text-xs flex items-center shadow-inner">
                                                         <i className="fas fa-check mr-1"></i> 削除
                                                     </button>
                                                 ) : (
-                                                    <button className="px-4 py-2 bg-red-600 text-white font-bold rounded-lg text-sm flex items-center shadow shadow-red-200 active:bg-red-700">
+                                                    <button className="px-2 py-1 md:px-3 bg-red-600 text-white font-bold rounded text-xs flex items-center shadow shadow-red-200 active:bg-red-700">
                                                         <i className="fas fa-plus mr-1"></i> 追加
                                                     </button>
                                                 )}
@@ -343,18 +363,18 @@
                 </div>
             );
 
-            // --- タブ2: セトリ編集 (ハイブリッド版) ---
+            // --- タブ2: セトリ編集 (超コンパクト版) ---
             const renderEditTab = () => (
                 <div className="animate-fade-in print-hidden">
                     {renderCountSettings()}
 
                     {setlist.length === 0 ? (
-                        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-                            <i className="fas fa-list-ul text-4xl text-gray-300 mb-4"></i>
-                            <p className="text-gray-500 font-medium">まだ曲が選ばれていません。<br/>「曲を選ぶ」タブから追加してください。</p>
+                        <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
+                            <i className="fas fa-list-ul text-3xl text-gray-300 mb-3"></i>
+                            <p className="text-gray-500 font-medium text-sm">まだ曲が選ばれていません。<br/>「曲を選ぶ」タブから追加してください。</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-2"> {/* 余白を狭く */}
                             {setlist.map((song, index) => {
                                 const isExtra = index >= mainCount;
                                 return (
@@ -365,73 +385,73 @@
                                         onDragEnter={() => (dragOverItem.current = index)}
                                         onDragEnd={handleSort}
                                         onDragOver={(e) => e.preventDefault()}
-                                        className={`bg-white border rounded-xl shadow-sm overflow-hidden flex flex-col transition-all relative ${isExtra ? 'border-gray-200 bg-gray-50 opacity-80' : 'border-red-100'}`}
+                                        className={`bg-white border rounded-lg shadow-sm overflow-hidden flex flex-col transition-all relative ${isExtra ? 'border-gray-200 bg-gray-50 opacity-80' : 'border-red-100'}`}
                                     >
-                                        {/* 予備境界線（直前に表示） */}
+                                        {/* 予備境界線 */}
                                         {index === mainCount && (
-                                            <div className="absolute -top-3 left-0 w-full flex justify-center z-10 pointer-events-none">
-                                                <span className="bg-gray-800 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">🛑 ここから予備曲</span>
+                                            <div className="absolute -top-2 left-0 w-full flex justify-center z-10 pointer-events-none">
+                                                <span className="bg-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">🛑 ここから予備曲</span>
                                             </div>
                                         )}
 
                                         {/* 上段: 基本情報とパラメータ */}
-                                        <div className="p-3 flex flex-col md:flex-row gap-2 md:gap-3 items-start md:items-end">
+                                        <div className="p-1.5 md:p-2 flex flex-col md:flex-row gap-1 md:gap-2 items-start md:items-end">
                                             
-                                            {/* 左側: 操作と曲名 (曲名領域を最大限確保) */}
+                                            {/* 左側: 操作と曲名 */}
                                             <div className="flex items-center w-full md:w-auto md:flex-1">
                                                 {/* PC用: ドラッグハンドル */}
-                                                <div className="hidden md:flex text-gray-300 p-2 cursor-grab mr-2">
-                                                    <i className="fas fa-grip-vertical text-xl"></i>
+                                                <div className="hidden md:flex text-gray-300 p-1 cursor-grab mr-1">
+                                                    <i className="fas fa-grip-vertical text-lg"></i>
                                                 </div>
 
-                                                {/* スマホ用: 矢印ボタン */}
-                                                <div className="md:hidden flex flex-col space-y-1 mr-3">
-                                                    <button onClick={() => moveRow(index, -1)} disabled={index === 0} className={`p-2 rounded bg-gray-100 text-gray-600 ${index === 0 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-up"></i></button>
-                                                    <button onClick={() => moveRow(index, 1)} disabled={index === setlist.length - 1} className={`p-2 rounded bg-gray-100 text-gray-600 ${index === setlist.length - 1 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-down"></i></button>
+                                                {/* スマホ用: 矢印ボタン (極小化) */}
+                                                <div className="md:hidden flex flex-col space-y-0.5 mr-2">
+                                                    <button onClick={() => moveRow(index, -1)} disabled={index === 0} className={`px-2 py-0.5 rounded bg-gray-100 text-gray-600 ${index === 0 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-up text-[10px]"></i></button>
+                                                    <button onClick={() => moveRow(index, 1)} disabled={index === setlist.length - 1} className={`px-2 py-0.5 rounded bg-gray-100 text-gray-600 ${index === setlist.length - 1 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-down text-[10px]"></i></button>
                                                 </div>
 
-                                                <div className="w-10 flex-shrink-0 text-center font-black text-xl text-gray-400 mr-2">
+                                                <div className="w-6 flex-shrink-0 text-center font-black text-sm md:text-base text-gray-400 mr-1">
                                                     {isExtra ? '予' : index + 1}
                                                 </div>
                                                 
-                                                <div className="flex-1 font-bold text-lg md:text-xl text-gray-800 leading-tight pr-2">
+                                                <div className="flex-1 font-bold text-sm md:text-base text-gray-800 leading-tight pr-1">
                                                     {song.楽曲名 || song.曲名}
                                                 </div>
 
-                                                {/* スマホ用: 行削除ボタン (上段右端) */}
+                                                {/* スマホ用: 行削除ボタン */}
                                                 <button 
                                                     onClick={() => {
                                                         const newList = setlist.filter((_, i) => i !== index);
                                                         setSetlist(newList);
                                                         showToast(`削除しました`);
                                                     }}
-                                                    className="md:hidden ml-auto flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 active:bg-red-200 transition-colors"
+                                                    className="md:hidden ml-auto flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 active:bg-red-200 transition-colors"
                                                 >
-                                                    <i className="fas fa-trash-alt"></i>
+                                                    <i className="fas fa-trash-alt text-xs"></i>
                                                 </button>
                                             </div>
 
-                                            {/* 右側(PC) / 2段目(スマホ): パラメータ群 (指定の比率で構成) */}
-                                            <div className="grid grid-cols-[19fr_31fr_25fr_25fr] md:flex items-end gap-2 w-full md:w-auto mt-1 md:mt-0">
-                                                {/* Key入力 (基準比: 0.6) */}
-                                                <div className="md:w-12">
-                                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Key</label>
-                                                    <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                            {/* 右側(PC) / 2段目(スマホ): パラメータ群 */}
+                                            <div className="grid grid-cols-[19fr_31fr_25fr_25fr] md:flex items-end gap-1.5 w-full md:w-auto mt-0.5 md:mt-0">
+                                                {/* Key入力 */}
+                                                <div className="md:w-10">
+                                                    <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center">Key</label>
+                                                    <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-1 py-0.5 md:py-1 border rounded bg-white text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
                                                 </div>
-                                                {/* ハーモニカ入力 (基準比: 1.0) */}
-                                                <div className="md:w-20">
-                                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Harp</label>
-                                                    <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
-                                                </div>
-                                                {/* BPM入力 (基準比: 0.8) */}
+                                                {/* ハーモニカ入力 */}
                                                 <div className="md:w-16">
-                                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">BPM</label>
-                                                    <input type="text" value={song.BPM || ''} onChange={(e) => updateSetlistField(index, 'BPM', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                                    <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center">Harp</label>
+                                                    <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-1 py-0.5 md:py-1 border rounded bg-white text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
                                                 </div>
-                                                {/* Time入力 (基準比: 0.8) */}
-                                                <div className="md:w-16">
-                                                    <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Time</label>
-                                                    <input type="text" value={song.Time || ''} onChange={(e) => updateSetlistField(index, 'Time', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                                {/* BPM入力 */}
+                                                <div className="md:w-14">
+                                                    <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center">BPM</label>
+                                                    <input type="text" value={song.BPM || ''} onChange={(e) => updateSetlistField(index, 'BPM', e.target.value)} className="w-full px-1 py-0.5 md:py-1 border rounded bg-white text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                                </div>
+                                                {/* Time入力 */}
+                                                <div className="md:w-14">
+                                                    <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center">Time</label>
+                                                    <input type="text" value={song.Time || ''} onChange={(e) => updateSetlistField(index, 'Time', e.target.value)} className="w-full px-1 py-0.5 md:py-1 border rounded bg-white text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
                                                 </div>
                                                 
                                                 {/* PC用: 行削除ボタン */}
@@ -441,22 +461,22 @@
                                                         setSetlist(newList);
                                                         showToast(`削除しました`);
                                                     }}
-                                                    className="hidden md:flex ml-2 w-10 h-10 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 active:bg-red-200 transition-colors flex-shrink-0"
+                                                    className="hidden md:flex ml-1 w-8 h-8 items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 active:bg-red-200 transition-colors flex-shrink-0"
                                                 >
-                                                    <i className="fas fa-trash-alt"></i>
+                                                    <i className="fas fa-trash-alt text-xs"></i>
                                                 </button>
                                             </div>
                                         </div>
 
-                                        {/* 下段: 備考（横幅全体を贅沢に使う） */}
-                                        <div className="px-3 pb-3 pt-2 bg-gray-50 border-t border-gray-100">
-                                            <label className="block text-[10px] font-bold text-gray-500 mb-1">備考・指示 (タップで拡大)</label>
+                                        {/* 下段: 備考（超コンパクト化） */}
+                                        <div className="px-2 pb-1.5 pt-0.5 bg-gray-50 border-t border-gray-100">
+                                            <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0.5">備考・指示 (タップで拡大)</label>
                                             <div 
                                                 onClick={() => {
                                                     setTempNoteText(song["備考・演奏指示"] || song.備考 || '');
                                                     setEditingNoteIndex(index);
                                                 }}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-sm text-gray-700 truncate cursor-text hover:bg-gray-100 transition-colors"
+                                                className="w-full px-2 py-0.5 md:py-1 border border-gray-300 rounded bg-white text-xs text-gray-700 truncate cursor-text hover:bg-gray-100 transition-colors"
                                             >
                                                 {song["備考・演奏指示"] || song.備考 || <span className="text-gray-400 italic">タップして入力...</span>}
                                             </div>
@@ -472,24 +492,24 @@
                     {editingNoteIndex !== null && (
                         <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black bg-opacity-60 animate-fade-in p-0 md:p-4 print-hidden">
                             <div className="bg-white w-full md:w-[500px] h-[50vh] md:h-auto md:rounded-2xl rounded-t-2xl flex flex-col shadow-2xl">
-                                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-2xl">
-                                    <h3 className="font-bold text-gray-800">
+                                <div className="p-3 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                                    <h3 className="font-bold text-gray-800 text-sm md:text-base">
                                         <i className="fas fa-edit mr-2 text-red-600"></i>
                                         備考・演奏指示を編集
                                     </h3>
-                                    <button onClick={() => setEditingNoteIndex(null)} className="text-gray-400 hover:text-gray-600 p-2"><i className="fas fa-times text-xl"></i></button>
+                                    <button onClick={() => setEditingNoteIndex(null)} className="text-gray-400 hover:text-gray-600 px-2 py-1"><i className="fas fa-times text-lg"></i></button>
                                 </div>
-                                <div className="p-4 flex-grow">
+                                <div className="p-3 flex-grow">
                                     <textarea 
                                         value={tempNoteText}
                                         onChange={(e) => setTempNoteText(e.target.value)}
                                         placeholder="ここに演奏の注意点やきっかけを自由に書き込んでください..."
-                                        className="w-full h-full p-4 border border-gray-300 rounded-xl focus:ring-4 focus:ring-red-100 focus:border-red-400 outline-none resize-none text-lg"
+                                        className="w-full h-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none resize-none text-base"
                                         autoFocus
                                     ></textarea>
                                 </div>
-                                <div className="p-4 border-t border-gray-200">
-                                    <button onClick={saveNote} className="w-full py-4 bg-red-600 text-white font-bold text-lg rounded-xl active:bg-red-700 shadow-lg flex justify-center items-center">
+                                <div className="p-3 border-t border-gray-200">
+                                    <button onClick={saveNote} className="w-full py-3 bg-red-600 text-white font-bold text-base rounded-lg active:bg-red-700 shadow-md flex justify-center items-center">
                                         <i className="fas fa-check-circle mr-2"></i> 保存して閉じる
                                     </button>
                                 </div>
@@ -503,20 +523,20 @@
             const renderPreviewTab = () => (
                 <div className="animate-fade-in">
                     <div className="print-hidden mb-6">
-                        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 text-center">
-                            <h2 className="text-2xl font-black text-gray-800 mb-2">準備完了！</h2>
-                            <p className="text-gray-600 mb-6">A4用紙1枚に見やすく最適化されたセトリを出力します。</p>
+                        <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 text-center">
+                            <h2 className="text-xl md:text-2xl font-black text-gray-800 mb-1">準備完了！</h2>
+                            <p className="text-xs md:text-sm text-gray-600 mb-4">A4用紙1枚に見やすく最適化されたセトリを出力します。</p>
                             
-                            <div className="flex justify-center mb-6">
-                                <div className="bg-red-50 border border-red-100 rounded-lg p-4 inline-flex items-center space-x-6">
+                            <div className="flex justify-center mb-4">
+                                <div className="bg-red-50 border border-red-100 rounded-lg p-3 inline-flex items-center space-x-4 md:space-x-6">
                                     <div>
-                                        <span className="block text-xs font-bold text-red-800 opacity-70 mb-1">本番演奏時間 (約)</span>
-                                        <span className="text-3xl font-black text-red-600">{calculateTotalTime()}</span>
+                                        <span className="block text-[10px] md:text-xs font-bold text-red-800 opacity-70 mb-0.5">本番演奏時間 (約)</span>
+                                        <span className="text-xl md:text-3xl font-black text-red-600">{calculateTotalTime()}</span>
                                     </div>
-                                    <div className="h-10 w-px bg-red-200"></div>
+                                    <div className="h-8 w-px bg-red-200"></div>
                                     <div>
-                                        <span className="block text-xs font-bold text-red-800 opacity-70 mb-1">曲数設定</span>
-                                        <span className="text-lg font-bold text-gray-700">本番{mainCount}曲 / 予備{extraCount}曲</span>
+                                        <span className="block text-[10px] md:text-xs font-bold text-red-800 opacity-70 mb-0.5">曲数設定</span>
+                                        <span className="text-sm md:text-lg font-bold text-gray-700">本番{mainCount}曲 / 予備{extraCount}曲</span>
                                     </div>
                                 </div>
                             </div>
@@ -524,58 +544,80 @@
                             <button 
                                 onClick={() => window.print()}
                                 disabled={setlist.length === 0}
-                                className="w-full md:w-auto md:px-12 py-4 bg-red-600 text-white font-bold text-lg rounded-xl shadow-lg hover:bg-red-700 active:scale-95 transition-transform disabled:bg-gray-300 flex items-center justify-center mx-auto"
+                                className="w-full md:w-auto md:px-12 py-3 md:py-4 bg-red-600 text-white font-bold text-base md:text-lg rounded-xl shadow-lg hover:bg-red-700 active:scale-95 transition-transform disabled:bg-gray-300 flex items-center justify-center mx-auto"
                             >
-                                <i className="fas fa-print mr-2 text-xl"></i>
+                                <i className="fas fa-print mr-2 text-lg"></i>
                                 PDFに保存 / 印刷する
                             </button>
-                            <p className="text-xs text-gray-500 mt-3 font-bold">※ボタンを押して「PDFとして保存」を選んでLINEで共有してください。</p>
+                            <p className="text-[10px] md:text-xs text-gray-500 mt-2 font-bold">※ボタンを押して「PDFとして保存」を選んでLINEで共有してください。</p>
                         </div>
 
-                        {/* --- 画面上の印刷プレビュー --- */}
-                        <div className="bg-gray-200 p-4 rounded-xl overflow-x-auto shadow-inner mb-6">
-                            <p className="text-center text-sm font-bold text-gray-500 mb-4"><i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー（横にスクロールできます）</p>
-                            <div className="mx-auto bg-white shadow-md text-black font-sans" style={{ width: '210mm', minWidth: '210mm', minHeight: '297mm', padding: '10mm' }}>
-                                <div className="text-center border-b-4 border-black pb-2 mb-4">
-                                    <h1 className="text-4xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
-                                    <div className="flex justify-between mt-2 font-bold text-lg px-2">
-                                        <div>Total Time: {calculateTotalTime()}</div>
-                                        <div>Date: ___ / ___ / ______</div>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col border-2 border-black h-[240mm]">
-                                    
-                                    {/* 新しいグリッドヘッダー */}
-                                    <div className="print-grid-header">
-                                        <div>#</div>
-                                        <div>楽曲名</div>
-                                        <div>Key</div>
-                                        <div>Harp</div>
-                                        <div>BPM</div>
-                                        <div>Time</div>
-                                    </div>
-
-                                    {/* データ行 */}
-                                    {setlist.slice(0, mainCount + extraCount).map((song, i) => {
-                                        const isExtra = i >= mainCount;
-                                        return (
-                                            <div key={i} className={`print-grid-row ${isExtra ? 'bg-gray-50 text-gray-600 italic print-extra' : ''}`}>
-                                                <div className="pg-no">{isExtra ? '予' : i + 1}</div>
-                                                <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
-                                                <div className="pg-key">{song.Key}</div>
-                                                <div className="pg-harp">{song["Harp (Pos)"] || song.Harp}</div>
-                                                <div className="pg-bpm">{song.BPM}</div>
-                                                <div className="pg-time">{song.Time || song.時間}</div>
-                                                
-                                                {/* 備考（下段フル幅） */}
-                                                {(song["備考・演奏指示"] || song.備考) && (
-                                                    <div className="pg-memo">
-                                                        &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
-                                                    </div>
-                                                )}
+                        {/* --- 画面上の印刷プレビュー (オートスケール対応) --- */}
+                        <div className="bg-gray-200 p-2 md:p-4 rounded-xl shadow-inner mb-6 flex flex-col items-center overflow-hidden">
+                            <p className="text-center text-xs md:text-sm font-bold text-gray-500 mb-2 w-full">
+                                <i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー
+                            </p>
+                            
+                            {/* スケール基準となるラッパー */}
+                            <div ref={previewWrapperRef} className="w-full flex justify-center">
+                                {/* A4のアスペクト比を維持しつつ、スケールで縮小させる箱 */}
+                                <div style={{ 
+                                    width: `${794 * previewScale}px`, 
+                                    height: `${1122 * previewScale}px`, 
+                                    position: 'relative' 
+                                }}>
+                                    {/* 実際のA4サイズのレイアウト (transformで縮小表示) */}
+                                    <div className="bg-white shadow-md text-black font-sans absolute top-0 left-0" 
+                                         style={{ 
+                                             width: '794px',   /* A4幅 210mm の近似ピクセル */
+                                             height: '1122px', /* A4高 297mm の近似ピクセル */
+                                             padding: '38px',  /* 余白 10mm の近似ピクセル */
+                                             transformOrigin: 'top left',
+                                             transform: `scale(${previewScale})` 
+                                         }}>
+                                        <div className="text-center border-b-4 border-black pb-2 mb-4 h-full flex flex-col">
+                                            <h1 className="text-4xl font-black tracking-widest uppercase flex-shrink-0">LIVE SETLIST - CHICAGO</h1>
+                                            <div className="flex justify-between mt-2 font-bold text-lg px-2 flex-shrink-0">
+                                                <div>Total Time: {calculateTotalTime()}</div>
+                                                <div>Date: ___ / ___ / ______</div>
                                             </div>
-                                        );
-                                    })}
+                                            
+                                            {/* メインテーブル領域 */}
+                                            <div className="flex flex-col border-2 border-black flex-grow mt-4">
+                                                {/* ヘッダー */}
+                                                <div className="print-grid-header flex-shrink-0">
+                                                    <div>#</div>
+                                                    <div>楽曲名</div>
+                                                    <div>Key</div>
+                                                    <div>Harp</div>
+                                                    <div>BPM</div>
+                                                    <div>Time</div>
+                                                </div>
+
+                                                {/* データ行 */}
+                                                {setlist.slice(0, mainCount + extraCount).map((song, i) => {
+                                                    const isExtra = i >= mainCount;
+                                                    return (
+                                                        <div key={i} className={`print-grid-row ${isExtra ? 'bg-gray-50 text-gray-600 italic print-extra' : ''}`}>
+                                                            <div className="pg-no">{isExtra ? '予' : i + 1}</div>
+                                                            <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
+                                                            <div className="pg-key">{song.Key}</div>
+                                                            <div className="pg-harp">{song["Harp (Pos)"] || song.Harp}</div>
+                                                            <div className="pg-bpm">{song.BPM}</div>
+                                                            <div className="pg-time">{song.Time || song.時間}</div>
+                                                            
+                                                            {/* 備考（下段フル幅） */}
+                                                            {(song["備考・演奏指示"] || song.備考) && (
+                                                                <div className="pg-memo">
+                                                                    &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -633,23 +675,23 @@
             const renderHelpModal = () => (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-70 p-4 animate-fade-in print-hidden">
                     <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
-                        <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
-                            <h2 className="text-xl font-bold"><i className="fas fa-question-circle mr-2"></i>使い方の案内</h2>
-                            <button onClick={() => setShowHelp(false)} className="text-gray-300 hover:text-white p-2"><i className="fas fa-times text-xl"></i></button>
+                        <div className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center">
+                            <h2 className="text-lg md:text-xl font-bold"><i className="fas fa-question-circle mr-2"></i>使い方の案内</h2>
+                            <button onClick={() => setShowHelp(false)} className="text-gray-300 hover:text-white px-2"><i className="fas fa-times text-xl"></i></button>
                         </div>
-                        <div className="p-6 overflow-y-auto space-y-6 text-gray-800 text-base leading-relaxed">
+                        <div className="p-4 md:p-6 overflow-y-auto space-y-4 md:space-y-6 text-gray-800 text-sm md:text-base leading-relaxed">
                             
-                            <div className="bg-red-50 p-4 rounded-xl border border-red-100">
-                                <h3 className="font-bold text-red-800 text-lg mb-2">1. セトリの作り方</h3>
-                                <ul className="list-disc pl-5 space-y-2">
+                            <div className="bg-red-50 p-3 md:p-4 rounded-xl border border-red-100">
+                                <h3 className="font-bold text-red-800 text-base md:text-lg mb-2">1. セトリの作り方</h3>
+                                <ul className="list-disc pl-5 space-y-1 md:space-y-2">
                                     <li><b>「曲を選ぶ」タブ:</b> 追加ボタンを押して、今日やる曲を選びます。</li>
                                     <li><b>「編集・並べ替え」タブ:</b> ⬆️⬇️矢印ボタンで順番を変えられます。キーやメモもここで書けます。</li>
                                 </ul>
                             </div>
 
-                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                                <h3 className="font-bold text-blue-800 text-lg mb-2">2. メンバーにLINEで送る方法</h3>
-                                <ol className="list-decimal pl-5 space-y-2">
+                            <div className="bg-blue-50 p-3 md:p-4 rounded-xl border border-blue-100">
+                                <h3 className="font-bold text-blue-800 text-base md:text-lg mb-2">2. メンバーにLINEで送る方法</h3>
+                                <ol className="list-decimal pl-5 space-y-1 md:space-y-2">
                                     <li>「PDF・印刷」タブを開きます。</li>
                                     <li><b>「PDFに保存 / 印刷する」</b>の赤いボタンを押します。</li>
                                     <li>スマホの画面に「PDFとして保存（またはプリント）」と出るので、そのまま保存します。</li>
@@ -657,17 +699,17 @@
                                 </ol>
                             </div>
 
-                            <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
-                                <h3 className="font-bold text-yellow-800 text-lg mb-2">⚠️ 曲の追加・修正について</h3>
-                                <p className="font-bold text-lg text-black">
+                            <div className="bg-yellow-50 p-3 md:p-4 rounded-xl border border-yellow-200">
+                                <h3 className="font-bold text-yellow-800 text-base md:text-lg mb-2">⚠️ 曲の追加・修正について</h3>
+                                <p className="font-bold text-base md:text-lg text-black">
                                     新しい曲をリストに足したい時や、曲名を修正したい時は、ご自身で操作せず <span className="text-red-600 border-b-2 border-red-600">スズナさん</span> にお願いしてください！
                                 </p>
-                                <p className="text-sm text-gray-600 mt-2">（スズナさんがデータベースを更新すると、全員のスマホに自動で反映されます）</p>
+                                <p className="text-xs md:text-sm text-gray-600 mt-2">（スズナさんがデータベースを更新すると、全員のスマホに自動で反映されます）</p>
                             </div>
 
                         </div>
-                        <div className="p-4 bg-gray-100 border-t border-gray-200 text-center">
-                            <button onClick={() => setShowHelp(false)} className="px-8 py-3 bg-gray-800 text-white font-bold rounded-xl active:bg-gray-900 shadow-md">閉じる</button>
+                        <div className="p-3 md:p-4 bg-gray-100 border-t border-gray-200 text-center">
+                            <button onClick={() => setShowHelp(false)} className="px-8 py-2 md:py-3 bg-gray-800 text-white font-bold rounded-xl active:bg-gray-900 shadow-md">閉じる</button>
                         </div>
                     </div>
                 </div>
@@ -687,31 +729,31 @@
 
                     {/* ヘッダー */}
                     <header className="bg-gray-900 text-white shadow-lg sticky top-0 z-40 print-hidden">
-                        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-                            <h1 className="text-xl md:text-2xl font-black tracking-wider flex items-center">
+                        <div className="max-w-4xl mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
+                            <h1 className="text-lg md:text-2xl font-black tracking-wider flex items-center">
                                 🎸 CHICAGO セトリ
                             </h1>
-                            <button onClick={() => setShowHelp(true)} className="flex items-center justify-center w-10 h-10 bg-gray-800 rounded-full border-2 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 active:scale-95 transition-all">
-                                <i className="fas fa-question text-lg"></i>
+                            <button onClick={() => setShowHelp(true)} className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 bg-gray-800 rounded-full border-2 border-gray-600 text-gray-300 hover:text-white hover:border-gray-400 active:scale-95 transition-all">
+                                <i className="fas fa-question text-sm md:text-lg"></i>
                             </button>
                         </div>
                         
                         {/* タブナビゲーション */}
                         <div className="flex max-w-4xl mx-auto px-2 pb-2 space-x-1">
-                            <button onClick={() => setActiveTab('search')} className={`flex-1 py-3 text-xs md:text-sm font-bold rounded-lg transition-all ${activeTab === 'search' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-search block md:inline md:mr-1 mb-1 md:mb-0 text-lg md:text-base"></i> <span className="hidden md:inline">1. </span>曲を選ぶ
+                            <button onClick={() => setActiveTab('search')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'search' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
+                                <i className="fas fa-search block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">1. </span>曲を選ぶ
                             </button>
-                            <button onClick={() => setActiveTab('edit')} className={`flex-1 py-3 text-xs md:text-sm font-bold rounded-lg transition-all ${activeTab === 'edit' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-list-ol block md:inline md:mr-1 mb-1 md:mb-0 text-lg md:text-base"></i> <span className="hidden md:inline">2. </span>編集・並べ替え
+                            <button onClick={() => setActiveTab('edit')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'edit' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
+                                <i className="fas fa-list-ol block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">2. </span>編集・並替
                             </button>
-                            <button onClick={() => setActiveTab('preview')} className={`flex-1 py-3 text-xs md:text-sm font-bold rounded-lg transition-all ${activeTab === 'preview' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-print block md:inline md:mr-1 mb-1 md:mb-0 text-lg md:text-base"></i> <span className="hidden md:inline">3. </span>PDF・印刷
+                            <button onClick={() => setActiveTab('preview')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'preview' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
+                                <i className="fas fa-print block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">3. </span>印刷
                             </button>
                         </div>
                     </header>
 
                     {/* メインコンテンツ */}
-                    <main className="max-w-4xl mx-auto px-3 md:px-4 pt-6 print:p-0">
+                    <main className="max-w-4xl mx-auto px-2 md:px-4 pt-4 md:pt-6 print:p-0">
                         {activeTab === 'search' && renderSearchTab()}
                         {activeTab === 'edit' && renderEditTab()}
                         {activeTab === 'preview' && renderPreviewTab()}
