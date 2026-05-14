@@ -47,23 +47,31 @@
                 align-items: center; /* 縦の中央揃え */
             }
             .print-row:last-child { border-bottom: none; }
-            .print-cell {
-                padding: 0 10px;
-                font-size: 1.2rem; /* 基本の大きめフォント */
-                font-weight: bold;
-                display: flex;
-                align-items: center;
-                height: 100%;
-                border-right: 1px solid #444;
-            }
-            .print-cell:last-child { border-right: none; }
-            .print-cell-no { width: 8%; justify-content: center; font-size: 1.4rem; }
-            .print-cell-title { width: 42%; font-size: 1.6rem; }
-            .print-cell-key { width: 15%; font-size: 1.1rem; flex-direction: column; justify-content: center; align-items: flex-start; }
-            .print-cell-memo { width: 35%; font-size: 1.1rem; font-weight: normal; }
-            .print-extra { color: #666; font-style: italic; background-color: #f9f9f9; }
+            
+            .print-extra { color: #666; font-style: italic; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
         }
         .print-only { display: none; }
+
+        /* 画面上プレビュー＆印刷共通のセル幅とスタイル */
+        .print-cell {
+            padding: 0 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            height: 100%;
+            border-right: 1px solid #444;
+        }
+        .print-cell:last-child { border-right: none; }
+        .print-cell-no { width: 8%; justify-content: center; font-size: 1.4rem; }
+        .print-cell-title-memo { width: 44%; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 5px 10px; }
+        .print-cell-key { width: 12%; justify-content: center; font-size: 1.4rem; }
+        .print-cell-harp { width: 14%; justify-content: center; font-size: 1.4rem; }
+        .print-cell-bpm { width: 10%; justify-content: center; font-size: 1.4rem; }
+        .print-cell-time { width: 12%; justify-content: center; font-size: 1.4rem; }
+        
+        .print-song-title { font-size: 1.6rem; font-weight: bold; width: 100%; line-height: 1.1; }
+        .print-song-memo { font-size: 1.1rem; font-weight: normal; margin-top: 4px; color: #333; width: 100%; white-space: pre-wrap; line-height: 1.2;}
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans">
@@ -72,31 +80,60 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
-        // 初期ダミーデータ（CSVが読み込めない時の保険用。時間データ追加）
+        // 初期ダミーデータ（CSVが読み込めない時の保険用）
         const FALLBACK_DATA = [
-            { 楽曲名: "25 or 6 to 4", Key: "Am", "Harp (Pos)": "", Time: "4:50", "備考・演奏指示": "" },
-            { 楽曲名: "Saturday in the Park", Key: "C", "Harp (Pos)": "C", Time: "3:56", "備考・演奏指示": "ピアノから" },
-            { 楽曲名: "Hard to Say I'm Sorry", Key: "E", "Harp (Pos)": "", Time: "3:48", "備考・演奏指示": "バラード" },
-            { 楽曲名: "If You Leave Me Now", Key: "B", "Harp (Pos)": "", Time: "3:55", "備考・演奏指示": "" },
-            { 楽曲名: "Does Anybody Really Know What Time It Is?", Key: "C", "Harp (Pos)": "", Time: "4:36", "備考・演奏指示": "ホーンセクション" },
-            { 楽曲名: "Beginnings", Key: "A", "Harp (Pos)": "A", Time: "7:54", "備考・演奏指示": "アコギ" },
-            { 楽曲名: "Make Me Smile", Key: "E", "Harp (Pos)": "", Time: "3:01", "備考・演奏指示": "" },
-            { 楽曲名: "Colour My World", Key: "F", "Harp (Pos)": "", Time: "3:03", "備考・演奏指示": "フルート" },
-            { 楽曲名: "Just You 'n' Me", Key: "C", "Harp (Pos)": "", Time: "3:42", "備考・演奏指示": "" },
-            { 楽曲名: "Feelin' Stronger Every Day", Key: "D", "Harp (Pos)": "", Time: "4:15", "備考・演奏指示": "アップテンポ" }
+            { 楽曲名: "25 or 6 to 4", Key: "Am", "Harp (Pos)": "", BPM: "150", Time: "4:50", "備考・演奏指示": "" },
+            { 楽曲名: "Saturday in the Park", Key: "C", "Harp (Pos)": "C", BPM: "114", Time: "3:56", "備考・演奏指示": "ピアノから" },
+            { 楽曲名: "Hard to Say I'm Sorry", Key: "E", "Harp (Pos)": "", BPM: "72", Time: "3:48", "備考・演奏指示": "バラード" },
+            { 楽曲名: "If You Leave Me Now", Key: "B", "Harp (Pos)": "", BPM: "100", Time: "3:55", "備考・演奏指示": "" },
+            { 楽曲名: "Does Anybody Really Know What Time It Is?", Key: "C", "Harp (Pos)": "", BPM: "112", Time: "4:36", "備考・演奏指示": "ホーンセクション" },
+            { 楽曲名: "Beginnings", Key: "A", "Harp (Pos)": "A", BPM: "120", Time: "7:54", "備考・演奏指示": "アコギ" },
+            { 楽曲名: "Make Me Smile", Key: "E", "Harp (Pos)": "", BPM: "130", Time: "3:01", "備考・演奏指示": "" },
+            { 楽曲名: "Colour My World", Key: "F", "Harp (Pos)": "", BPM: "60", Time: "3:03", "備考・演奏指示": "フルート" },
+            { 楽曲名: "Just You 'n' Me", Key: "C", "Harp (Pos)": "", BPM: "90", Time: "3:42", "備考・演奏指示": "" },
+            { 楽曲名: "Feelin' Stronger Every Day", Key: "D", "Harp (Pos)": "", BPM: "120", Time: "4:15", "備考・演奏指示": "アップテンポ" }
         ].map((song, i) => ({ ...song, id: `song_${i}` })); // ユニークIDを付与
 
-        // CSVパーサー関数
+        // CSVパーサー関数（ダブルクォートや列ズレに対応した強化版）
         const parseCSV = (text) => {
+            const parseLine = (line) => {
+                const result = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(current);
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                result.push(current);
+                return result.map(s => s.trim().replace(/^"|"$/g, ''));
+            };
+
             const lines = text.split('\n').filter(line => line.trim() !== '');
             if (lines.length < 2) return [];
-            const headers = lines[0].split(',').map(h => h.trim());
+            const headers = parseLine(lines[0]);
+            
             return lines.slice(1).map((line, idx) => {
-                const values = line.split(',');
+                const values = parseLine(line);
                 const obj = { id: `csv_${idx}` };
                 headers.forEach((header, index) => {
-                    obj[header] = values[index] ? values[index].trim() : '';
+                    obj[header] = values[index] !== undefined ? values[index] : '';
                 });
+                
+                // 列名が何であれ、特定の位置（C列、F列など）のデータを強制取得するフォールバック
+                obj['楽曲名'] = obj['楽曲名'] || obj['曲名'] || values[0] || '';
+                obj['Key'] = obj['Key'] || obj['キー'] || values[1] || '';
+                obj['Time'] = obj['Time'] || obj['時間'] || values[2] || ''; // C列を時間として取得
+                obj['Harp (Pos)'] = obj['Harp (Pos)'] || obj['Harp'] || obj['ハーモニカ'] || values[3] || '';
+                obj['備考・演奏指示'] = obj['備考・演奏指示'] || obj['備考'] || obj['指示'] || values[4] || '';
+                obj['BPM'] = obj['BPM'] || obj['テンポ'] || values[5] || ''; // F列をBPMとして取得
+                
                 return obj;
             });
         };
@@ -327,33 +364,54 @@
                                                 {isExtra ? '予' : index + 1}
                                             </div>
                                             
-                                            <div className="flex-1 font-bold text-lg text-gray-800 line-clamp-2 leading-tight">
+                                            <div className="flex-1 font-bold text-lg text-gray-800 leading-tight pr-2">
                                                 {song.楽曲名 || song.曲名}
-                                                <div className="text-xs font-normal text-gray-400 mt-1">Time: {song.Time || '0:00'}</div>
                                             </div>
+
+                                            {/* 行削除（ゴミ箱）ボタン */}
+                                            <button 
+                                                onClick={() => {
+                                                    const newList = setlist.filter((_, i) => i !== index);
+                                                    setSetlist(newList);
+                                                    showToast(`削除しました`);
+                                                }}
+                                                className="ml-auto w-10 h-10 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-100 active:bg-red-200 transition-colors"
+                                            >
+                                                <i className="fas fa-trash-alt"></i>
+                                            </button>
                                         </div>
 
                                         {/* 入力エリア */}
-                                        <div className="flex-1 bg-gray-50 p-3 border-t md:border-t-0 md:border-l border-gray-100 grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
+                                        <div className="flex-1 bg-gray-50 p-3 border-t md:border-t-0 md:border-l border-gray-100 grid grid-cols-4 gap-3 items-end">
                                             {/* キー入力 */}
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 mb-1">キー</label>
-                                                <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-2 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                            <div className="col-span-1">
+                                                <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Key</label>
+                                                <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
                                             </div>
                                             {/* ハーモニカ入力 */}
-                                            <div>
-                                                <label className="block text-[10px] font-bold text-gray-500 mb-1">ハーモニカ</label>
-                                                <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-2 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                            <div className="col-span-1">
+                                                <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Harp</label>
+                                                <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                            </div>
+                                            {/* BPM入力 */}
+                                            <div className="col-span-1">
+                                                <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">BPM</label>
+                                                <input type="text" value={song.BPM || ''} onChange={(e) => updateSetlistField(index, 'BPM', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
+                                            </div>
+                                            {/* Time入力 */}
+                                            <div className="col-span-1">
+                                                <label className="block text-[10px] font-bold text-gray-500 mb-1 text-center">Time</label>
+                                                <input type="text" value={song.Time || ''} onChange={(e) => updateSetlistField(index, 'Time', e.target.value)} className="w-full px-1 py-2 border rounded bg-white text-sm font-bold text-center focus:ring-2 focus:ring-red-200 outline-none" />
                                             </div>
                                             {/* 備考（タップで大画面モーダル） */}
-                                            <div className="col-span-2">
+                                            <div className="col-span-4">
                                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">備考・指示 (タップで拡大)</label>
                                                 <div 
                                                     onClick={() => {
                                                         setTempNoteText(song["備考・演奏指示"] || song.備考 || '');
                                                         setEditingNoteIndex(index);
                                                     }}
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-sm text-gray-700 truncate cursor-text bg-white"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-sm text-gray-700 truncate cursor-text"
                                                 >
                                                     {song["備考・演奏指示"] || song.備考 || <span className="text-gray-400 italic">タップして入力...</span>}
                                                 </div>
@@ -441,25 +499,33 @@
                                     </div>
                                 </div>
                                 <div className="flex flex-col border-2 border-black h-[240mm]">
+                                    {/* ヘッダー行 */}
                                     <div className="flex bg-gray-200 border-b-2 border-black" style={{ height: '35px' }}>
                                         <div className="print-cell print-cell-no border-r border-gray-800 font-bold">#</div>
-                                        <div className="print-cell print-cell-title border-r border-gray-800 font-bold">楽曲名</div>
-                                        <div className="print-cell print-cell-key border-r border-gray-800 font-bold">Key/Harp</div>
-                                        <div className="print-cell print-cell-time border-r border-gray-800 font-bold">Time</div>
-                                        <div className="print-cell print-cell-memo font-bold">備考</div>
+                                        <div className="print-cell print-cell-title-memo border-r border-gray-800 font-bold" style={{flexDirection: 'row', alignItems: 'center'}}>楽曲名 / 備考</div>
+                                        <div className="print-cell print-cell-key border-r border-gray-800 font-bold">Key</div>
+                                        <div className="print-cell print-cell-harp border-r border-gray-800 font-bold">Harp</div>
+                                        <div className="print-cell print-cell-bpm border-r border-gray-800 font-bold">BPM</div>
+                                        <div className="print-cell print-cell-time font-bold">Time</div>
                                     </div>
+                                    {/* データ行 */}
                                     {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                         const isExtra = i >= mainCount;
                                         return (
                                             <div key={i} className={`flex flex-grow border-b border-gray-400 items-center ${isExtra ? 'bg-gray-50 text-gray-600 italic' : ''} ${i === setlist.slice(0, mainCount + extraCount).length - 1 ? 'border-b-0' : ''}`}>
                                                 <div className="print-cell print-cell-no border-r border-gray-400 font-bold text-xl">{isExtra ? '予' : i + 1}</div>
-                                                <div className="print-cell print-cell-title border-r border-gray-400 font-bold text-2xl leading-tight">{song.楽曲名 || song.曲名}</div>
-                                                <div className="print-cell print-cell-key border-r border-gray-400 font-bold text-sm">
-                                                    {song.Key ? <div><span className="text-xs text-gray-500">Key:</span> {song.Key}</div> : null}
-                                                    {song["Harp (Pos)"] || song.Harp ? <div className="mt-1"><span className="text-xs text-gray-500">Harp:</span> {song["Harp (Pos)"] || song.Harp}</div> : null}
+                                                <div className="print-cell print-cell-title-memo border-r border-gray-400">
+                                                    <div className="print-song-title">{song.楽曲名 || song.曲名}</div>
+                                                    {(song["備考・演奏指示"] || song.備考) && (
+                                                        <div className="print-song-memo">
+                                                            &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="print-cell print-cell-time border-r border-gray-400 font-bold text-lg text-center">{song.Time || song.時間 || '-'}</div>
-                                                <div className="print-cell print-cell-memo text-lg leading-tight">{song["備考・演奏指示"] || song.備考}</div>
+                                                <div className="print-cell print-cell-key border-r border-gray-400 font-bold text-xl">{song.Key}</div>
+                                                <div className="print-cell print-cell-harp border-r border-gray-400 font-bold text-xl">{song["Harp (Pos)"] || song.Harp}</div>
+                                                <div className="print-cell print-cell-bpm border-r border-gray-400 font-bold text-xl">{song.BPM}</div>
+                                                <div className="print-cell print-cell-time font-bold text-xl">{song.Time || song.時間}</div>
                                             </div>
                                         );
                                     })}
@@ -482,10 +548,11 @@
                             {/* ヘッダー行 */}
                             <div className="print-row bg-gray-200 border-b-2 border-black" style={{ flexGrow: 0, height: '35px' }}>
                                 <div className="print-cell print-cell-no">#</div>
-                                <div className="print-cell print-cell-title">楽曲名</div>
-                                <div className="print-cell print-cell-key">Key/Harp</div>
+                                <div className="print-cell print-cell-title-memo" style={{flexDirection: 'row', alignItems: 'center'}}>楽曲名 / 備考</div>
+                                <div className="print-cell print-cell-key">Key</div>
+                                <div className="print-cell print-cell-harp">Harp</div>
+                                <div className="print-cell print-cell-bpm">BPM</div>
                                 <div className="print-cell print-cell-time">Time</div>
-                                <div className="print-cell print-cell-memo">備考</div>
                             </div>
 
                             {/* データ行（flex-growで高さ自動最大化） */}
@@ -494,13 +561,18 @@
                                 return (
                                     <div key={i} className={`print-row ${isExtra ? 'print-extra' : ''}`}>
                                         <div className="print-cell print-cell-no">{isExtra ? '予' : i + 1}</div>
-                                        <div className="print-cell print-cell-title leading-tight">{song.楽曲名 || song.曲名}</div>
-                                        <div className="print-cell print-cell-key">
-                                            {song.Key ? <div><span className="text-xs text-gray-500">Key:</span> {song.Key}</div> : null}
-                                            {song["Harp (Pos)"] || song.Harp ? <div className="mt-1"><span className="text-xs text-gray-500">Harp:</span> {song["Harp (Pos)"] || song.Harp}</div> : null}
+                                        <div className="print-cell print-cell-title-memo">
+                                            <div className="print-song-title">{song.楽曲名 || song.曲名}</div>
+                                            {(song["備考・演奏指示"] || song.備考) && (
+                                                <div className="print-song-memo">
+                                                    &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                                </div>
+                                            )}
                                         </div>
-                                        <div className="print-cell print-cell-time">{song.Time || song.時間 || '-'}</div>
-                                        <div className="print-cell print-cell-memo leading-tight">{song["備考・演奏指示"] || song.備考}</div>
+                                        <div className="print-cell print-cell-key">{song.Key}</div>
+                                        <div className="print-cell print-cell-harp">{song["Harp (Pos)"] || song.Harp}</div>
+                                        <div className="print-cell print-cell-bpm">{song.BPM}</div>
+                                        <div className="print-cell print-cell-time">{song.Time || song.時間}</div>
                                     </div>
                                 );
                             })}
