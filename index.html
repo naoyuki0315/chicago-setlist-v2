@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>CHICAGO Setlist Builder</title>
+    <!-- ES-335デザインのファビコン (チェリーレッド背景に白抜きの335) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%23991b1b%22/><text x=%2250%22 y=%2268%22 font-family=%22Impact, Arial, sans-serif%22 font-size=%2250%22 text-anchor=%22middle%22 fill=%22%23ffffff%22>335</text></svg>">
+    
     <!-- Tailwind CSS (デザイン用) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome (アイコン用) -->
@@ -40,38 +43,61 @@
                 flex-direction: column;
                 border: 2px solid black;
             }
-            .print-row {
-                display: flex;
-                flex-grow: 1; /* 曲数に合わせて行の高さを均等に最大化 */
-                border-bottom: 1px solid #444;
-                align-items: center; /* 縦の中央揃え */
-            }
-            .print-row:last-child { border-bottom: none; }
             
             .print-extra { color: #666; font-style: italic; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
         }
         .print-only { display: none; }
 
-        /* 画面上プレビュー＆印刷共通のセル幅とスタイル */
-        .print-cell {
-            padding: 0 10px;
-            font-size: 1.2rem;
-            font-weight: bold;
+        /* --- 指定比率のグリッドレイアウト (Harp:1.0, Key:0.6, BPM:0.8, Time:0.8) --- */
+        /* 列の割合: No(8%), 曲名(60%), Key(6%), Harp(10%), BPM(8%), Time(8%) */
+        .print-grid-row {
+            display: grid;
+            grid-template-columns: 8% 60% 6% 10% 8% 8%;
+            grid-template-rows: 1fr auto; /* 上段は伸びる、下段(備考)は内容に合わせて高さを取る */
+            flex-grow: 1;
+            border-bottom: 1px solid #444;
+        }
+        .print-grid-row:last-child { border-bottom: none; }
+        
+        .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
+        .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: center; padding: 0 10px; border-right: 1px solid #444; }
+        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
+        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
+        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
+        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; }
+        
+        /* 備考欄（タイトルからTimeの最後まで横幅いっぱい使う） */
+        .pg-memo {
+            grid-column: 2 / 7;
+            grid-row: 2;
+            padding: 2px 10px 4px 10px;
+            font-size: 1.1rem;
+            color: #333;
+            white-space: pre-wrap;
+            line-height: 1.2;
+        }
+
+        /* ヘッダー用 */
+        .print-grid-header {
+            display: grid;
+            grid-template-columns: 8% 60% 6% 10% 8% 8%;
+            background-color: #e5e7eb;
+            border-bottom: 2px solid black;
+            height: 35px;
+        }
+        .print-grid-header > div {
             display: flex;
             align-items: center;
-            height: 100%;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
             border-right: 1px solid #444;
         }
-        .print-cell:last-child { border-right: none; }
-        .print-cell-no { width: 8%; justify-content: center; font-size: 1.4rem; }
-        .print-cell-title-memo { width: 44%; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 5px 10px; }
-        .print-cell-key { width: 12%; justify-content: center; font-size: 1.4rem; }
-        .print-cell-harp { width: 14%; justify-content: center; font-size: 1.4rem; }
-        .print-cell-bpm { width: 10%; justify-content: center; font-size: 1.4rem; }
-        .print-cell-time { width: 12%; justify-content: center; font-size: 1.4rem; }
-        
+        .print-grid-header > div:last-child {
+            border-right: none;
+        }
+
         .print-song-title { font-size: 1.6rem; font-weight: bold; width: 100%; line-height: 1.1; }
-        .print-song-memo { font-size: 1.1rem; font-weight: normal; margin-top: 4px; color: #333; width: 100%; white-space: pre-wrap; line-height: 1.2;}
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans">
@@ -94,7 +120,7 @@
             { 楽曲名: "Feelin' Stronger Every Day", Key: "D", "Harp (Pos)": "", BPM: "120", Time: "4:15", "備考・演奏指示": "アップテンポ" }
         ].map((song, i) => ({ ...song, id: `song_${i}` })); // ユニークIDを付与
 
-        // CSVパーサー関数（ダブルクォートや列ズレに対応した強化版）
+        // CSVパーサー関数
         const parseCSV = (text) => {
             const parseLine = (line) => {
                 const result = [];
@@ -518,33 +544,35 @@
                                     </div>
                                 </div>
                                 <div className="flex flex-col border-2 border-black h-[240mm]">
-                                    {/* ヘッダー行 */}
-                                    <div className="flex bg-gray-200 border-b-2 border-black" style={{ height: '35px' }}>
-                                        <div className="print-cell print-cell-no border-r border-gray-800 font-bold">#</div>
-                                        <div className="print-cell print-cell-title-memo border-r border-gray-800 font-bold" style={{flexDirection: 'row', alignItems: 'center'}}>楽曲名 / 備考</div>
-                                        <div className="print-cell print-cell-key border-r border-gray-800 font-bold">Key</div>
-                                        <div className="print-cell print-cell-harp border-r border-gray-800 font-bold">Harp</div>
-                                        <div className="print-cell print-cell-bpm border-r border-gray-800 font-bold">BPM</div>
-                                        <div className="print-cell print-cell-time font-bold">Time</div>
+                                    
+                                    {/* 新しいグリッドヘッダー */}
+                                    <div className="print-grid-header">
+                                        <div>#</div>
+                                        <div>楽曲名</div>
+                                        <div>Key</div>
+                                        <div>Harp</div>
+                                        <div>BPM</div>
+                                        <div>Time</div>
                                     </div>
+
                                     {/* データ行 */}
                                     {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                         const isExtra = i >= mainCount;
                                         return (
-                                            <div key={i} className={`flex flex-grow border-b border-gray-400 items-center ${isExtra ? 'bg-gray-50 text-gray-600 italic' : ''} ${i === setlist.slice(0, mainCount + extraCount).length - 1 ? 'border-b-0' : ''}`}>
-                                                <div className="print-cell print-cell-no border-r border-gray-400 font-bold text-xl">{isExtra ? '予' : i + 1}</div>
-                                                <div className="print-cell print-cell-title-memo border-r border-gray-400">
-                                                    <div className="print-song-title">{song.楽曲名 || song.曲名}</div>
-                                                    {(song["備考・演奏指示"] || song.備考) && (
-                                                        <div className="print-song-memo">
-                                                            &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="print-cell print-cell-key border-r border-gray-400 font-bold text-xl">{song.Key}</div>
-                                                <div className="print-cell print-cell-harp border-r border-gray-400 font-bold text-xl">{song["Harp (Pos)"] || song.Harp}</div>
-                                                <div className="print-cell print-cell-bpm border-r border-gray-400 font-bold text-xl">{song.BPM}</div>
-                                                <div className="print-cell print-cell-time font-bold text-xl">{song.Time || song.時間}</div>
+                                            <div key={i} className={`print-grid-row ${isExtra ? 'bg-gray-50 text-gray-600 italic print-extra' : ''}`}>
+                                                <div className="pg-no">{isExtra ? '予' : i + 1}</div>
+                                                <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
+                                                <div className="pg-key">{song.Key}</div>
+                                                <div className="pg-harp">{song["Harp (Pos)"] || song.Harp}</div>
+                                                <div className="pg-bpm">{song.BPM}</div>
+                                                <div className="pg-time">{song.Time || song.時間}</div>
+                                                
+                                                {/* 備考（下段フル幅） */}
+                                                {(song["備考・演奏指示"] || song.備考) && (
+                                                    <div className="pg-memo">
+                                                        &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })}
@@ -564,34 +592,35 @@
                         </div>
 
                         <div className="print-table-container">
-                            {/* ヘッダー行 */}
-                            <div className="print-row bg-gray-200 border-b-2 border-black" style={{ flexGrow: 0, height: '35px' }}>
-                                <div className="print-cell print-cell-no">#</div>
-                                <div className="print-cell print-cell-title-memo" style={{flexDirection: 'row', alignItems: 'center'}}>楽曲名 / 備考</div>
-                                <div className="print-cell print-cell-key">Key</div>
-                                <div className="print-cell print-cell-harp">Harp</div>
-                                <div className="print-cell print-cell-bpm">BPM</div>
-                                <div className="print-cell print-cell-time">Time</div>
+                            
+                            {/* 新しいグリッドヘッダー */}
+                            <div className="print-grid-header">
+                                <div>#</div>
+                                <div>楽曲名</div>
+                                <div>Key</div>
+                                <div>Harp</div>
+                                <div>BPM</div>
+                                <div>Time</div>
                             </div>
 
-                            {/* データ行（flex-growで高さ自動最大化） */}
+                            {/* データ行（行の高さは自動的に均等拡大） */}
                             {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                 const isExtra = i >= mainCount;
                                 return (
-                                    <div key={i} className={`print-row ${isExtra ? 'print-extra' : ''}`}>
-                                        <div className="print-cell print-cell-no">{isExtra ? '予' : i + 1}</div>
-                                        <div className="print-cell print-cell-title-memo">
-                                            <div className="print-song-title">{song.楽曲名 || song.曲名}</div>
-                                            {(song["備考・演奏指示"] || song.備考) && (
-                                                <div className="print-song-memo">
-                                                    &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="print-cell print-cell-key">{song.Key}</div>
-                                        <div className="print-cell print-cell-harp">{song["Harp (Pos)"] || song.Harp}</div>
-                                        <div className="print-cell print-cell-bpm">{song.BPM}</div>
-                                        <div className="print-cell print-cell-time">{song.Time || song.時間}</div>
+                                    <div key={i} className={`print-grid-row ${isExtra ? 'print-extra' : ''}`}>
+                                        <div className="pg-no">{isExtra ? '予' : i + 1}</div>
+                                        <div className="pg-title"><div className="print-song-title">{song.楽曲名 || song.曲名}</div></div>
+                                        <div className="pg-key">{song.Key}</div>
+                                        <div className="pg-harp">{song["Harp (Pos)"] || song.Harp}</div>
+                                        <div className="pg-bpm">{song.BPM}</div>
+                                        <div className="pg-time">{song.Time || song.時間}</div>
+                                        
+                                        {/* 備考（下段フル幅） */}
+                                        {(song["備考・演奏指示"] || song.備考) && (
+                                            <div className="pg-memo">
+                                                &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
+                                            </div>
+                                        )}
                                     </div>
                                 );
                             })}
