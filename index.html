@@ -428,9 +428,47 @@
                             </button>
                             <p className="text-xs text-gray-500 mt-3 font-bold">※ボタンを押して「PDFとして保存」を選んでLINEで共有してください。</p>
                         </div>
+
+                        {/* --- 画面上の印刷プレビュー --- */}
+                        <div className="bg-gray-200 p-4 rounded-xl overflow-x-auto shadow-inner mb-6">
+                            <p className="text-center text-sm font-bold text-gray-500 mb-4"><i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー（横にスクロールできます）</p>
+                            <div className="mx-auto bg-white shadow-md text-black font-sans" style={{ width: '210mm', minWidth: '210mm', minHeight: '297mm', padding: '10mm' }}>
+                                <div className="text-center border-b-4 border-black pb-2 mb-4">
+                                    <h1 className="text-4xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
+                                    <div className="flex justify-between mt-2 font-bold text-lg px-2">
+                                        <div>Total Time: {calculateTotalTime()}</div>
+                                        <div>Date: ___ / ___ / ______</div>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col border-2 border-black h-[240mm]">
+                                    <div className="flex bg-gray-200 border-b-2 border-black" style={{ height: '35px' }}>
+                                        <div className="print-cell print-cell-no border-r border-gray-800 font-bold">#</div>
+                                        <div className="print-cell print-cell-title border-r border-gray-800 font-bold">楽曲名</div>
+                                        <div className="print-cell print-cell-key border-r border-gray-800 font-bold">Key/Harp</div>
+                                        <div className="print-cell print-cell-time border-r border-gray-800 font-bold">Time</div>
+                                        <div className="print-cell print-cell-memo font-bold">備考</div>
+                                    </div>
+                                    {setlist.slice(0, mainCount + extraCount).map((song, i) => {
+                                        const isExtra = i >= mainCount;
+                                        return (
+                                            <div key={i} className={`flex flex-grow border-b border-gray-400 items-center ${isExtra ? 'bg-gray-50 text-gray-600 italic' : ''} ${i === setlist.slice(0, mainCount + extraCount).length - 1 ? 'border-b-0' : ''}`}>
+                                                <div className="print-cell print-cell-no border-r border-gray-400 font-bold text-xl">{isExtra ? '予' : i + 1}</div>
+                                                <div className="print-cell print-cell-title border-r border-gray-400 font-bold text-2xl leading-tight">{song.楽曲名 || song.曲名}</div>
+                                                <div className="print-cell print-cell-key border-r border-gray-400 font-bold text-sm">
+                                                    {song.Key ? <div><span className="text-xs text-gray-500">Key:</span> {song.Key}</div> : null}
+                                                    {song["Harp (Pos)"] || song.Harp ? <div className="mt-1"><span className="text-xs text-gray-500">Harp:</span> {song["Harp (Pos)"] || song.Harp}</div> : null}
+                                                </div>
+                                                <div className="print-cell print-cell-time border-r border-gray-400 font-bold text-lg text-center">{song.Time || song.時間 || '-'}</div>
+                                                <div className="print-cell print-cell-memo text-lg leading-tight">{song["備考・演奏指示"] || song.備考}</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* --- 印刷用 A4フルレイアウト (画面上では隠れ、印刷時のみ展開) --- */}
+                    {/* --- 実際の印刷用 A4フルレイアウト (画面上では隠れ、印刷時のみ展開) --- */}
                     <div className="print-only flex-col w-full h-full bg-white text-black font-sans" id="print-container">
                         <div className="print-header text-center border-b-4 border-black pb-2">
                             <h1 className="text-4xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
@@ -446,6 +484,7 @@
                                 <div className="print-cell print-cell-no">#</div>
                                 <div className="print-cell print-cell-title">楽曲名</div>
                                 <div className="print-cell print-cell-key">Key/Harp</div>
+                                <div className="print-cell print-cell-time">Time</div>
                                 <div className="print-cell print-cell-memo">備考</div>
                             </div>
 
@@ -460,6 +499,7 @@
                                             {song.Key ? <div><span className="text-xs text-gray-500">Key:</span> {song.Key}</div> : null}
                                             {song["Harp (Pos)"] || song.Harp ? <div className="mt-1"><span className="text-xs text-gray-500">Harp:</span> {song["Harp (Pos)"] || song.Harp}</div> : null}
                                         </div>
+                                        <div className="print-cell print-cell-time">{song.Time || song.時間 || '-'}</div>
                                         <div className="print-cell print-cell-memo leading-tight">{song["備考・演奏指示"] || song.備考}</div>
                                     </div>
                                 );
