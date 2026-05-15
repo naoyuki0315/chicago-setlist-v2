@@ -22,26 +22,54 @@
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* --- 印刷レイアウトの共通設定 --- */
+        /* 印刷（A4・1枚）の極限最適化レイアウト */
+        @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            body { background-color: white !important; margin: 0 !important; color: black !important; }
+            .print-hidden { display: none !important; }
+            .print-only { display: flex !important; }
+            
+            /* 1枚にピタッと収め、行間を最大化する魔法のフレックスボックス */
+            #print-container {
+                display: flex;
+                flex-direction: column;
+                min-height: 270mm; /* 16曲以上の時は伸びるようにmin-heightに変更 */
+                width: 100%;
+            }
+            .print-header { flex-shrink: 0; margin-bottom: 5mm; }
+            .print-table-container {
+                flex-grow: 1;
+                display: flex;
+                flex-direction: column;
+                border: 2px solid black;
+            }
+            
+            .print-extra { color: #666; font-style: italic; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
+        }
         .print-only { display: none; }
-        
+
         /* --- 指定比率のグリッドレイアウト --- */
+        /* Keyの幅を1.5倍(6%→9%)にし、その分曲名を(60%→57%)に調整 */
         .print-grid-row {
             display: grid;
             grid-template-columns: 8% 57% 9% 10% 8% 8%;
             grid-template-rows: 1fr auto; 
             flex-grow: 1; 
+            min-height: 16mm; 
+            page-break-inside: avoid;
             border-bottom: 1px solid #444;
         }
         .print-grid-row:last-child { border-bottom: none; }
         
         .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
+        /* 左寄せを徹底 */
         .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 10px; border-right: 1px solid #444; text-align: left; }
         .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; }
         
+        /* 備考欄（左寄せを徹底） */
         .pg-memo {
             grid-column: 2 / 7;
             grid-row: 2;
@@ -55,6 +83,7 @@
             justify-content: flex-start;
         }
 
+        /* ヘッダー用 */
         .print-grid-header {
             display: grid;
             grid-template-columns: 8% 57% 9% 10% 8% 8%;
@@ -154,6 +183,7 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         };
 
+        // Harpのカッコ表記を2段化するコンポーネント
         const renderHarpCell = (harpText) => {
             if (!harpText) return null;
             const match = harpText.match(/^(.*?)\s*(\(.*?\))$/);
@@ -223,8 +253,10 @@
                 return () => window.removeEventListener('resize', updateScale);
             }, [activeTab]);
 
+            // CSVの読み込み (キャッシュ対策のため、URLの末尾にランダムな文字列を付与)
             useEffect(() => {
-                fetch('master_data.csv')
+                const timestamp = new Date().getTime();
+                fetch(`master_data.csv?t=${timestamp}`)
                     .then(response => {
                         if (!response.ok) throw new Error('CSVが見つかりません');
                         return response.text();
@@ -240,6 +272,7 @@
 
             const showToast = (message) => {
                 setToastMessage(message);
+                // 3000msから1500ms（1.5秒）に短縮
                 setTimeout(() => setToastMessage(''), 1500);
             };
 
@@ -260,6 +293,7 @@
                 setSetlist(newList);
             };
 
+            // 順番移動（画面スクロール追従機能付き）
             const moveRow = (index, direction) => {
                 if (direction === -1 && index === 0) return;
                 if (direction === 1 && index === setlist.length - 1) return;
@@ -274,6 +308,7 @@
                 newList.splice(index + direction, 0, item);
                 setSetlist(newList);
 
+                // レンダリング直後に要素の新しい位置を計算し、画面のズレを補正する
                 if (itemEl) {
                     requestAnimationFrame(() => {
                         const newItemEl = document.getElementById(`song-row-${itemUniqueId}`);
@@ -303,12 +338,14 @@
                 setEditingNoteIndex(null);
             };
 
+            // 本番曲のみのトータルタイム
             const calculateTotalTime = () => {
                 const mainSongs = setlist.slice(0, mainCount);
                 const totalSeconds = mainSongs.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
                 return secondsToTime(totalSeconds);
             };
 
+            // 選択された全曲のトータルタイム
             const calculateAllSelectedTime = () => {
                 const totalSeconds = setlist.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
                 return secondsToTime(totalSeconds);
@@ -320,6 +357,7 @@
             const pageCount = isMultiPage ? Math.ceil(totalPrintCount / 15) : 1;
             const previewHeightPx = 1122 * pageCount;
 
+            // 15曲オーバー警告付きプリント
             const handlePrint = () => {
                 if (isMultiPage) {
                     alert("16曲以上は2枚になります。");
@@ -327,6 +365,7 @@
                 window.print();
             };
 
+            // 曲数設定 (ボタン式)
             const renderCountSettings = () => (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 md:p-4 mb-3 flex flex-col md:flex-row items-center justify-between gap-2">
                     <div className="font-bold text-gray-700 flex items-center text-sm md:text-base">
@@ -359,13 +398,13 @@
                 </div>
             );
 
-            // --- タブ1: 楽曲選択 ---
+            // --- タブ1: 楽曲選択 (ボタンを曲名の左に配置) ---
             const renderSearchTab = () => (
                 <div className="animate-fade-in print-hidden relative">
                     {renderCountSettings()}
                     
-                    {/* フローティング・スクロール補助ボタン (Searchタブのみ) */}
-                    <div className="fixed right-3 md:right-5 top-[40%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
+                    {/* フローティング・スクロール補助ボタン (Searchタブのみ / 位置を少し下に調整 top-[60%]) */}
+                    <div className="fixed right-3 md:right-5 top-[60%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
                         {!scrollPos.isTop && (
                             <button 
                                 onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} 
@@ -436,7 +475,7 @@
                 </div>
             );
 
-            // --- タブ2: セトリ編集 ---
+            // --- タブ2: セトリ編集 (スマホ超高圧縮版・ゴミ箱左配置) ---
             const renderEditTab = () => (
                 <div className="animate-fade-in print-hidden">
                     {renderCountSettings()}
@@ -452,6 +491,7 @@
                                 const isExtra = index >= mainCount;
                                 return (
                                     <React.Fragment key={song.uniqueId}>
+                                        {/* 予備境界線 */}
                                         {index === mainCount && (
                                             <div className="w-full flex justify-center py-1.5 print-hidden">
                                                 <span className="bg-gray-800 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md">🛑 ここから予備曲</span>
@@ -467,12 +507,17 @@
                                             onDragOver={(e) => e.preventDefault()}
                                             className={`bg-white border rounded shadow-sm overflow-hidden flex flex-col transition-all ${isExtra ? 'border-gray-200 bg-gray-50 opacity-80' : 'border-red-100'}`}
                                         >
+                                            {/* 上段: 基本情報とパラメータ */}
                                             <div className="p-0.5 md:p-2 flex flex-col md:flex-row gap-0 md:gap-2 items-start md:items-end">
+                                                
+                                                {/* 左側: 操作と曲名 */}
                                                 <div className="flex items-center w-full md:w-auto md:flex-1 py-0.5 md:py-0">
+                                                    {/* PC用: ドラッグハンドル */}
                                                     <div className="hidden md:flex text-gray-300 p-1 cursor-grab mr-1">
                                                         <i className="fas fa-grip-vertical text-lg"></i>
                                                     </div>
 
+                                                    {/* スマホ用: 矢印ボタン (極小) */}
                                                     <div className="md:hidden flex flex-col space-y-0 mr-1">
                                                         <button onClick={() => moveRow(index, -1)} disabled={index === 0} className={`px-1.5 py-0 rounded bg-gray-100 text-gray-600 ${index === 0 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-up text-[8px]"></i></button>
                                                         <button onClick={() => moveRow(index, 1)} disabled={index === setlist.length - 1} className={`px-1.5 py-0 rounded bg-gray-100 text-gray-600 ${index === setlist.length - 1 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-down text-[8px]"></i></button>
@@ -482,9 +527,10 @@
                                                         {isExtra ? '予' : index + 1}
                                                     </div>
                                                     
+                                                    {/* スマホ・PC共通 ゴミ箱ボタン（曲名の左） */}
                                                     <button 
                                                         onClick={(e) => {
-                                                            e.stopPropagation();
+                                                            e.stopPropagation(); // ドラッグとの干渉を防ぐ
                                                             const newList = setlist.filter((_, i) => i !== index);
                                                             setSetlist(newList);
                                                             showToast(`削除しました`);
@@ -499,19 +545,24 @@
                                                     </div>
                                                 </div>
 
+                                                {/* 右側(PC) / 2段目(スマホ): パラメータ群 */}
                                                 <div className="grid grid-cols-[15fr_56fr_12fr_17fr] md:flex items-end gap-0.5 w-full md:w-auto px-1 md:px-0 mb-0.5 md:mb-0">
+                                                    {/* Key入力 */}
                                                     <div className="md:w-10">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Key</label>
                                                         <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
+                                                    {/* ハーモニカ入力 */}
                                                     <div className="md:w-16">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Harp</label>
                                                         <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
+                                                    {/* BPM入力 */}
                                                     <div className="md:w-14">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">BPM</label>
                                                         <input type="text" value={song.BPM || ''} onChange={(e) => updateSetlistField(index, 'BPM', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
+                                                    {/* Time入力 */}
                                                     <div className="md:w-14">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Time</label>
                                                         <input type="text" value={song.Time || ''} onChange={(e) => updateSetlistField(index, 'Time', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
@@ -519,6 +570,7 @@
                                                 </div>
                                             </div>
 
+                                            {/* 下段: 備考（極限まで高さを削る） */}
                                             <div className="px-1 pb-1 pt-0 bg-gray-50 border-t border-gray-100">
                                                 <div 
                                                     onClick={() => {
@@ -534,6 +586,7 @@
                                                     )}
                                                 </div>
                                             </div>
+
                                         </div>
                                     </React.Fragment>
                                 );
@@ -541,6 +594,7 @@
                         </div>
                     )}
 
+                    {/* 備考欄 大画面編集モーダル (スマホでは上半分に完全固定) */}
                     {editingNoteIndex !== null && (
                         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-60 animate-fade-in p-0 md:p-4 print-hidden">
                             <div className="bg-white w-full md:w-[500px] h-[50vh] max-h-[50vh] md:max-h-none md:h-auto rounded-b-2xl md:rounded-2xl flex flex-col shadow-2xl">
@@ -626,6 +680,7 @@
                                              transform: `scale(${previewScale})` 
                                          }}>
                                         <div className="text-center border-b-4 border-black pb-2 mb-4 flex-shrink-0">
+                                            {/* タイトルを text-2xl に縮小 */}
                                             <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
                                             <div className="flex justify-between mt-2 font-bold text-lg px-2">
                                                 <div>本番曲のTotal Time: {calculateTotalTime()}</div>
@@ -672,6 +727,7 @@
                     {/* --- 実際の印刷用 A4フルレイアウト (画面上では隠れ、印刷時のみ展開) --- */}
                     <div className="print-only flex-col w-full bg-white text-black font-sans" id="print-container">
                         <div className="print-header text-center border-b-4 border-black pb-2">
+                            {/* タイトルを text-2xl に縮小 */}
                             <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
                             <div className="flex justify-between mt-2 font-bold text-lg px-2">
                                 <div>本番曲のTotal Time: {calculateTotalTime()}</div>
@@ -680,6 +736,8 @@
                         </div>
 
                         <div className="print-table-container">
+                            
+                            {/* 新しいグリッドヘッダー */}
                             <div className="print-grid-header">
                                 <div>#</div>
                                 <div>楽曲名</div>
@@ -689,6 +747,7 @@
                                 <div>Time</div>
                             </div>
 
+                            {/* データ行（行の高さは自動的に均等拡大、16曲以上は2枚目へ） */}
                             {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                 const isExtra = i >= mainCount;
                                 return (
@@ -700,6 +759,7 @@
                                         <div className="pg-bpm">{song.BPM}</div>
                                         <div className="pg-time">{song.Time || song.時間}</div>
                                         
+                                        {/* 備考（下段フル幅） */}
                                         {(song["備考・演奏指示"] || song.備考) && (
                                             <div className="pg-memo">
                                                 &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
