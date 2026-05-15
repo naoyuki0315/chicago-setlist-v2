@@ -22,54 +22,26 @@
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* 印刷（A4・1枚）の極限最適化レイアウト */
-        @media print {
-            @page { size: A4 portrait; margin: 10mm; }
-            body { background-color: white !important; margin: 0 !important; color: black !important; }
-            .print-hidden { display: none !important; }
-            .print-only { display: flex !important; }
-            
-            /* 1枚にピタッと収め、行間を最大化する魔法のフレックスボックス */
-            #print-container {
-                display: flex;
-                flex-direction: column;
-                /* JS側で 15曲以下の場合は 270mm に固定し、16曲以上は auto にする */
-                width: 100%;
-            }
-            .print-header { flex-shrink: 0; margin-bottom: 5mm; }
-            .print-table-container {
-                flex-grow: 1;
-                display: flex;
-                flex-direction: column;
-                border: 2px solid black;
-            }
-            
-            .print-extra { color: #666; font-style: italic; background-color: #f9f9f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact;}
-        }
+        /* --- 印刷レイアウトの共通設定 --- */
         .print-only { display: none; }
-
+        
         /* --- 指定比率のグリッドレイアウト --- */
-        /* Keyの幅を1.5倍(6%→9%)にし、その分曲名を(60%→57%)に調整 */
         .print-grid-row {
             display: grid;
             grid-template-columns: 8% 57% 9% 10% 8% 8%;
             grid-template-rows: 1fr auto; 
-            flex-grow: 1; /* 高さ固定時に均等に伸びる */
-            min-height: 15mm; 
-            page-break-inside: avoid;
+            flex-grow: 1; 
             border-bottom: 1px solid #444;
         }
         .print-grid-row:last-child { border-bottom: none; }
         
         .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
-        /* 左寄せを徹底 */
         .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 10px; border-right: 1px solid #444; text-align: left; }
         .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: center; justify-content: center; border-right: 1px solid #444; font-size: 1.4rem; font-weight: bold; }
         .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; font-weight: bold; }
         
-        /* 備考欄（左寄せを徹底） */
         .pg-memo {
             grid-column: 2 / 7;
             grid-row: 2;
@@ -83,7 +55,6 @@
             justify-content: flex-start;
         }
 
-        /* ヘッダー用 */
         .print-grid-header {
             display: grid;
             grid-template-columns: 8% 57% 9% 10% 8% 8%;
@@ -183,7 +154,6 @@
             return `${m}:${s.toString().padStart(2, '0')}`;
         };
 
-        // Harpのカッコ表記を2段化するコンポーネント
         const renderHarpCell = (harpText) => {
             if (!harpText) return null;
             const match = harpText.match(/^(.*?)\s*(\(.*?\))$/);
@@ -211,9 +181,29 @@
             const [editingNoteIndex, setEditingNoteIndex] = useState(null);
             const [tempNoteText, setTempNoteText] = useState("");
 
+            // スクロール検知用ステートとRef
+            const [scrollPos, setScrollPos] = useState({ isTop: true, isBottom: false });
+            const scrollContainerRef = useRef(null);
+
             const dragItem = useRef(null);
             const dragOverItem = useRef(null);
             const previewWrapperRef = useRef(null);
+
+            // スクロール状態の判定
+            const handleScroll = (e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.target;
+                setScrollPos({
+                    isTop: scrollTop <= 5,
+                    isBottom: scrollTop + clientHeight >= scrollHeight - 5
+                });
+            };
+
+            // タブや曲数が変わったときにスクロール状態を再評価
+            useEffect(() => {
+                if (activeTab === 'search' && scrollContainerRef.current) {
+                    handleScroll({ target: scrollContainerRef.current });
+                }
+            }, [activeTab, masterData, setlist]);
 
             useEffect(() => {
                 const updateScale = () => {
@@ -250,7 +240,6 @@
 
             const showToast = (message) => {
                 setToastMessage(message);
-                // 3000msから1500ms（1.5秒）に短縮
                 setTimeout(() => setToastMessage(''), 1500);
             };
 
@@ -271,7 +260,6 @@
                 setSetlist(newList);
             };
 
-            // 順番移動（画面スクロール追従機能付き）
             const moveRow = (index, direction) => {
                 if (direction === -1 && index === 0) return;
                 if (direction === 1 && index === setlist.length - 1) return;
@@ -286,7 +274,6 @@
                 newList.splice(index + direction, 0, item);
                 setSetlist(newList);
 
-                // レンダリング直後に要素の新しい位置を計算し、画面のズレを補正する
                 if (itemEl) {
                     requestAnimationFrame(() => {
                         const newItemEl = document.getElementById(`song-row-${itemUniqueId}`);
@@ -316,26 +303,23 @@
                 setEditingNoteIndex(null);
             };
 
-            // 本番曲のみのトータルタイム
             const calculateTotalTime = () => {
                 const mainSongs = setlist.slice(0, mainCount);
                 const totalSeconds = mainSongs.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
                 return secondsToTime(totalSeconds);
             };
 
-            // 選択された全曲のトータルタイム
             const calculateAllSelectedTime = () => {
                 const totalSeconds = setlist.reduce((acc, song) => acc + timeToSeconds(song.Time || song.時間), 0);
                 return secondsToTime(totalSeconds);
             };
 
-            // 曲数の計算（15曲を超えるかどうか）
+            // 印刷ページ数の計算
             const totalPrintCount = mainCount + extraCount;
             const isMultiPage = totalPrintCount >= 16;
-            // プレビューの親枠の高さ (16曲以上の場合は2ページ分の高さを確保)
-            const previewHeightPx = isMultiPage ? 2244 : 1122;
+            const pageCount = isMultiPage ? Math.ceil(totalPrintCount / 15) : 1;
+            const previewHeightPx = 1122 * pageCount;
 
-            // 15曲オーバー警告付きプリント
             const handlePrint = () => {
                 if (isMultiPage) {
                     alert("16曲以上は2枚になります。");
@@ -343,7 +327,6 @@
                 window.print();
             };
 
-            // 曲数設定 (ボタン式)
             const renderCountSettings = () => (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-2 md:p-4 mb-3 flex flex-col md:flex-row items-center justify-between gap-2">
                     <div className="font-bold text-gray-700 flex items-center text-sm md:text-base">
@@ -376,18 +359,50 @@
                 </div>
             );
 
-            // --- タブ1: 楽曲選択 (ボタンを曲名の左に配置) ---
+            // --- タブ1: 楽曲選択 ---
             const renderSearchTab = () => (
-                <div className="animate-fade-in print-hidden">
+                <div className="animate-fade-in print-hidden relative">
                     {renderCountSettings()}
                     
+                    {/* フローティング・スクロール補助ボタン (Searchタブのみ) */}
+                    <div className="fixed right-3 md:right-5 top-[40%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
+                        {!scrollPos.isTop && (
+                            <button 
+                                onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} 
+                                className="bg-gray-800 bg-opacity-70 hover:bg-opacity-100 text-white p-2.5 rounded-xl shadow-2xl flex flex-col items-center transition-all border border-gray-600 backdrop-blur-sm"
+                            >
+                                <i className="fas fa-chevron-up text-xl mb-1"></i>
+                                <span className="text-[10px] font-bold leading-tight">一番上へ</span>
+                                <span className="text-[11px] font-black text-red-300 leading-tight mt-1 whitespace-nowrap">
+                                    計 {calculateAllSelectedTime()}
+                                </span>
+                            </button>
+                        )}
+                        
+                        {!scrollPos.isBottom && (
+                            <button 
+                                onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'smooth' })} 
+                                className="bg-gray-800 bg-opacity-70 hover:bg-opacity-100 text-white p-2.5 rounded-xl shadow-2xl flex flex-col items-center transition-all border border-gray-600 backdrop-blur-sm"
+                            >
+                                <span className="text-[10px] font-bold leading-tight mb-1">一番下へ</span>
+                                <i className="fas fa-chevron-down text-xl"></i>
+                            </button>
+                        )}
+                    </div>
+
                     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
                         <div className="bg-red-50 px-3 py-2 border-b border-red-100 flex justify-between items-center">
                             <h2 className="text-xs md:text-sm font-bold text-red-800">マスターデータから選ぶ</h2>
                             <span className="text-[10px] md:text-xs text-red-600">※タップして追加/削除</span>
                         </div>
                         
-                        <div className="overflow-y-auto" style={{ maxHeight: '65vh' }}>
+                        {/* スクロール検知用の ref と onScroll を追加 */}
+                        <div 
+                            className="overflow-y-auto" 
+                            style={{ maxHeight: '65vh' }}
+                            ref={scrollContainerRef}
+                            onScroll={handleScroll}
+                        >
                             <ul className="divide-y divide-gray-100">
                                 {masterData.map((song) => {
                                     const isSelected = setlist.some(s => s.id === song.id);
@@ -421,7 +436,7 @@
                 </div>
             );
 
-            // --- タブ2: セトリ編集 (スマホ超高圧縮版・ゴミ箱左配置) ---
+            // --- タブ2: セトリ編集 ---
             const renderEditTab = () => (
                 <div className="animate-fade-in print-hidden">
                     {renderCountSettings()}
@@ -437,7 +452,6 @@
                                 const isExtra = index >= mainCount;
                                 return (
                                     <React.Fragment key={song.uniqueId}>
-                                        {/* 予備境界線 */}
                                         {index === mainCount && (
                                             <div className="w-full flex justify-center py-1.5 print-hidden">
                                                 <span className="bg-gray-800 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md">🛑 ここから予備曲</span>
@@ -453,17 +467,12 @@
                                             onDragOver={(e) => e.preventDefault()}
                                             className={`bg-white border rounded shadow-sm overflow-hidden flex flex-col transition-all ${isExtra ? 'border-gray-200 bg-gray-50 opacity-80' : 'border-red-100'}`}
                                         >
-                                            {/* 上段: 基本情報とパラメータ */}
                                             <div className="p-0.5 md:p-2 flex flex-col md:flex-row gap-0 md:gap-2 items-start md:items-end">
-                                                
-                                                {/* 左側: 操作と曲名 */}
                                                 <div className="flex items-center w-full md:w-auto md:flex-1 py-0.5 md:py-0">
-                                                    {/* PC用: ドラッグハンドル */}
                                                     <div className="hidden md:flex text-gray-300 p-1 cursor-grab mr-1">
                                                         <i className="fas fa-grip-vertical text-lg"></i>
                                                     </div>
 
-                                                    {/* スマホ用: 矢印ボタン (極小) */}
                                                     <div className="md:hidden flex flex-col space-y-0 mr-1">
                                                         <button onClick={() => moveRow(index, -1)} disabled={index === 0} className={`px-1.5 py-0 rounded bg-gray-100 text-gray-600 ${index === 0 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-up text-[8px]"></i></button>
                                                         <button onClick={() => moveRow(index, 1)} disabled={index === setlist.length - 1} className={`px-1.5 py-0 rounded bg-gray-100 text-gray-600 ${index === setlist.length - 1 ? 'opacity-30' : 'active:bg-gray-200'}`}><i className="fas fa-arrow-down text-[8px]"></i></button>
@@ -473,10 +482,9 @@
                                                         {isExtra ? '予' : index + 1}
                                                     </div>
                                                     
-                                                    {/* スマホ・PC共通 ゴミ箱ボタン（曲名の左） */}
                                                     <button 
                                                         onClick={(e) => {
-                                                            e.stopPropagation(); // ドラッグとの干渉を防ぐ
+                                                            e.stopPropagation();
                                                             const newList = setlist.filter((_, i) => i !== index);
                                                             setSetlist(newList);
                                                             showToast(`削除しました`);
@@ -491,24 +499,19 @@
                                                     </div>
                                                 </div>
 
-                                                {/* 右側(PC) / 2段目(スマホ): パラメータ群 */}
                                                 <div className="grid grid-cols-[15fr_56fr_12fr_17fr] md:flex items-end gap-0.5 w-full md:w-auto px-1 md:px-0 mb-0.5 md:mb-0">
-                                                    {/* Key入力 */}
                                                     <div className="md:w-10">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Key</label>
                                                         <input type="text" value={song.Key || ''} onChange={(e) => updateSetlistField(index, 'Key', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
-                                                    {/* ハーモニカ入力 */}
                                                     <div className="md:w-16">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Harp</label>
                                                         <input type="text" value={song["Harp (Pos)"] || song.Harp || ''} onChange={(e) => updateSetlistField(index, 'Harp (Pos)', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
-                                                    {/* BPM入力 */}
                                                     <div className="md:w-14">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">BPM</label>
                                                         <input type="text" value={song.BPM || ''} onChange={(e) => updateSetlistField(index, 'BPM', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
                                                     </div>
-                                                    {/* Time入力 */}
                                                     <div className="md:w-14">
                                                         <label className="block text-[8px] md:text-[9px] font-bold text-gray-500 mb-0 md:mb-0.5 text-center leading-none">Time</label>
                                                         <input type="text" value={song.Time || ''} onChange={(e) => updateSetlistField(index, 'Time', e.target.value)} className="w-full px-0.5 py-0 md:py-1 border rounded bg-white text-[9px] md:text-xs font-bold text-center focus:ring-2 focus:ring-red-200 outline-none h-4 md:h-auto leading-none" />
@@ -516,7 +519,6 @@
                                                 </div>
                                             </div>
 
-                                            {/* 下段: 備考（極限まで高さを削る） */}
                                             <div className="px-1 pb-1 pt-0 bg-gray-50 border-t border-gray-100">
                                                 <div 
                                                     onClick={() => {
@@ -532,7 +534,6 @@
                                                     )}
                                                 </div>
                                             </div>
-
                                         </div>
                                     </React.Fragment>
                                 );
@@ -540,7 +541,6 @@
                         </div>
                     )}
 
-                    {/* 備考欄 大画面編集モーダル (スマホでは上半分に完全固定) */}
                     {editingNoteIndex !== null && (
                         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black bg-opacity-60 animate-fade-in p-0 md:p-4 print-hidden">
                             <div className="bg-white w-full md:w-[500px] h-[50vh] max-h-[50vh] md:max-h-none md:h-auto rounded-b-2xl md:rounded-2xl flex flex-col shadow-2xl">
@@ -607,29 +607,25 @@
                         {/* --- 画面上の印刷プレビュー (オートスケール対応) --- */}
                         <div className="bg-gray-200 p-2 md:p-4 rounded-xl shadow-inner mb-6 flex flex-col items-center overflow-hidden">
                             <p className="text-center text-xs md:text-sm font-bold text-gray-500 mb-2 w-full">
-                                <i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー {isMultiPage && <span className="text-red-500 ml-2">※2枚になります</span>}
+                                <i className="fas fa-eye mr-1"></i> A4用紙 出力プレビュー {isMultiPage && <span className="text-red-500 ml-2">※2枚以上になります</span>}
                             </p>
                             
                             {/* スケール基準となるラッパー */}
                             <div ref={previewWrapperRef} className="w-full flex justify-center overflow-visible">
-                                {/* 16曲以上の場合は高さを2枚分(2244px)確保してはみ出しを防ぐ */}
                                 <div style={{ 
                                     width: `${794 * previewScale}px`, 
                                     height: `${previewHeightPx * previewScale}px`, 
                                     position: 'relative' 
                                 }}>
-                                    {/* 実際のA4サイズのレイアウト (transformで縮小表示) */}
                                     <div className="bg-white shadow-md text-black font-sans absolute top-0 left-0 flex flex-col" 
                                          style={{ 
-                                             width: '794px',   /* A4幅 210mm の近似ピクセル */
-                                             height: isMultiPage ? 'auto' : '1122px', /* 15曲までは1枚(1122px)に固定、16曲以上はautoで伸びる */
-                                             minHeight: '1122px',
-                                             padding: '38px',  /* 余白 10mm の近似ピクセル */
+                                             width: '794px',   
+                                             height: `${previewHeightPx}px`, // ページ数に応じた固定高さにすることで、はみ出しを防止
+                                             padding: '38px',  
                                              transformOrigin: 'top left',
                                              transform: `scale(${previewScale})` 
                                          }}>
                                         <div className="text-center border-b-4 border-black pb-2 mb-4 flex-shrink-0">
-                                            {/* タイトルを text-2xl に縮小 */}
                                             <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
                                             <div className="flex justify-between mt-2 font-bold text-lg px-2">
                                                 <div>本番曲のTotal Time: {calculateTotalTime()}</div>
@@ -637,9 +633,7 @@
                                             </div>
                                         </div>
                                             
-                                        {/* メインテーブル領域 (15曲以下なら flex-grow で高さいっぱいに伸びる) */}
                                         <div className="flex flex-col border-2 border-black flex-grow">
-                                            {/* ヘッダー */}
                                             <div className="print-grid-header flex-shrink-0">
                                                 <div>#</div>
                                                 <div>楽曲名</div>
@@ -649,7 +643,6 @@
                                                 <div>Time</div>
                                             </div>
 
-                                            {/* データ行 */}
                                             {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                                 const isExtra = i >= mainCount;
                                                 return (
@@ -661,7 +654,6 @@
                                                         <div className="pg-bpm">{song.BPM}</div>
                                                         <div className="pg-time">{song.Time || song.時間}</div>
                                                         
-                                                        {/* 備考（下段フル幅） */}
                                                         {(song["備考・演奏指示"] || song.備考) && (
                                                             <div className="pg-memo">
                                                                 &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
@@ -678,9 +670,8 @@
                     </div>
 
                     {/* --- 実際の印刷用 A4フルレイアウト (画面上では隠れ、印刷時のみ展開) --- */}
-                    <div className="print-only flex-col w-full bg-white text-black font-sans" id="print-container" style={{ height: isMultiPage ? 'auto' : '270mm' }}>
+                    <div className="print-only flex-col w-full bg-white text-black font-sans" id="print-container">
                         <div className="print-header text-center border-b-4 border-black pb-2">
-                            {/* タイトルを text-2xl に縮小 */}
                             <h1 className="text-2xl font-black tracking-widest uppercase">LIVE SETLIST - CHICAGO</h1>
                             <div className="flex justify-between mt-2 font-bold text-lg px-2">
                                 <div>本番曲のTotal Time: {calculateTotalTime()}</div>
@@ -689,8 +680,6 @@
                         </div>
 
                         <div className="print-table-container">
-                            
-                            {/* 新しいグリッドヘッダー */}
                             <div className="print-grid-header">
                                 <div>#</div>
                                 <div>楽曲名</div>
@@ -700,7 +689,6 @@
                                 <div>Time</div>
                             </div>
 
-                            {/* データ行（行の高さは自動的に均等拡大、16曲以上は2枚目へ） */}
                             {setlist.slice(0, mainCount + extraCount).map((song, i) => {
                                 const isExtra = i >= mainCount;
                                 return (
@@ -712,7 +700,6 @@
                                         <div className="pg-bpm">{song.BPM}</div>
                                         <div className="pg-time">{song.Time || song.時間}</div>
                                         
-                                        {/* 備考（下段フル幅） */}
                                         {(song["備考・演奏指示"] || song.備考) && (
                                             <div className="pg-memo">
                                                 &gt;&gt;&gt; {song["備考・演奏指示"] || song.備考}
@@ -726,52 +713,48 @@
                 </div>
             );
 
-            // --- ヘルプモーダル (70歳でもわかる説明) ---
-            const renderHelpModal = () => (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-70 p-4 animate-fade-in print-hidden">
-                    <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
-                        <div className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center">
-                            <h2 className="text-lg md:text-xl font-bold"><i className="fas fa-question-circle mr-2"></i>使い方の案内</h2>
-                            <button onClick={() => setShowHelp(false)} className="text-gray-300 hover:text-white px-2"><i className="fas fa-times text-xl"></i></button>
-                        </div>
-                        <div className="p-4 md:p-6 overflow-y-auto space-y-4 md:space-y-6 text-gray-800 text-sm md:text-base leading-relaxed">
-                            
-                            <div className="bg-red-50 p-3 md:p-4 rounded-xl border border-red-100">
-                                <h3 className="font-bold text-red-800 text-base md:text-lg mb-2">1. セトリの作り方</h3>
-                                <ul className="list-disc pl-5 space-y-1 md:space-y-2">
-                                    <li><b>「曲を選ぶ」タブ:</b> 追加ボタンを押して、今日やる曲を選びます。</li>
-                                    <li><b>「編集・並べ替え」タブ:</b> スマホ版は矢印、PC版はドラッグして順番を入れ替えられます。キーやメモもここで書き換えできます。</li>
-                                </ul>
-                            </div>
-
-                            <div className="bg-blue-50 p-3 md:p-4 rounded-xl border border-blue-100">
-                                <h3 className="font-bold text-blue-800 text-base md:text-lg mb-2">2. メンバーにLINEで送る方法</h3>
-                                <ol className="list-decimal pl-5 space-y-1 md:space-y-2">
-                                    <li>「PDF・印刷」タブを開きます。</li>
-                                    <li><b>「PDFに保存 / 印刷する」</b>の赤いボタンを押します。</li>
-                                    <li>スマホの画面に「PDFとして保存（またはプリント）」と出るので、そのまま保存します。</li>
-                                    <li>保存したPDFファイルを、バンドのグループLINEに送れば完了です！</li>
-                                </ol>
-                            </div>
-
-                            <div className="bg-yellow-50 p-3 md:p-4 rounded-xl border border-yellow-200">
-                                <h3 className="font-bold text-yellow-800 text-base md:text-lg mb-2">⚠️ 曲の追加・修正について</h3>
-                                <p className="font-bold text-base md:text-lg text-black">
-                                    新しい曲をリストに足したい時や、曲名を修正したい時は、ご自身で操作せず <span className="text-red-600 border-b-2 border-red-600">スズナ</span> にお願いしてください！
-                                </p>
-                                <p className="text-xs md:text-sm text-gray-600 mt-2">（スズナがデータベースを更新すると、全員のスマホに自動で反映されます）</p>
-                            </div>
-
-                        </div>
-                        <div className="p-3 md:p-4 bg-gray-100 border-t border-gray-200 text-center">
-                            <button onClick={() => setShowHelp(false)} className="px-8 py-2 md:py-3 bg-gray-800 text-white font-bold rounded-xl active:bg-gray-900 shadow-md">閉じる</button>
-                        </div>
-                    </div>
-                </div>
-            );
-
+            // 動的に<style>タグを注入して、印刷時の改ページを強力にコントロールする
             return (
                 <div className="min-h-screen pb-24 md:pb-8 print:pb-0">
+                    <style>
+                    {`
+                        @media print {
+                            @page { size: A4 portrait; margin: 10mm; }
+                            body { 
+                                background-color: white !important; 
+                                margin: 0 !important; 
+                                color: black !important; 
+                                -webkit-print-color-adjust: exact;
+                                print-color-adjust: exact;
+                            }
+                            .print-hidden { display: none !important; }
+                            .print-only { display: flex !important; }
+                            
+                            ${!isMultiPage ? `
+                            /* 15曲以下の場合は強制的に1ページに収める(白紙ページ防止ロック) */
+                            html, body {
+                                height: 100vh;
+                                overflow: hidden;
+                            }
+                            #print-container {
+                                height: 250mm !important; 
+                                max-height: 250mm !important;
+                                overflow: hidden !important;
+                            }
+                            ` : `
+                            /* 16曲以上の場合は複数ページ許可 */
+                            #print-container {
+                                height: auto !important;
+                            }
+                            .print-grid-row {
+                                min-height: 16mm;
+                                page-break-inside: avoid;
+                            }
+                            `}
+                        }
+                    `}
+                    </style>
+
                     {/* Toast (画面のど真ん中に大きく表示) */}
                     {toastMessage && (
                         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 text-white px-8 py-5 rounded-2xl shadow-2xl z-[100] animate-fade-in text-lg font-bold print-hidden flex items-center justify-center whitespace-nowrap">
@@ -785,7 +768,6 @@
                     {/* ヘッダー */}
                     <header className="bg-gray-900 text-white shadow-lg sticky top-0 z-40 print-hidden">
                         <div className="max-w-4xl mx-auto px-3 md:px-4 py-3 md:py-4 flex justify-between items-center">
-                            {/* タイトルの変更 */}
                             <h1 className="text-lg md:text-xl font-black tracking-wider flex items-center">
                                 セトリ作成システムCHICAGO🎵
                             </h1>
@@ -816,6 +798,51 @@
                     </main>
                 </div>
             );
+
+            function renderHelpModal() {
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black bg-opacity-70 p-4 animate-fade-in print-hidden">
+                        <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-full">
+                            <div className="bg-gray-800 text-white p-3 md:p-4 flex justify-between items-center">
+                                <h2 className="text-lg md:text-xl font-bold"><i className="fas fa-question-circle mr-2"></i>使い方の案内</h2>
+                                <button onClick={() => setShowHelp(false)} className="text-gray-300 hover:text-white px-2"><i className="fas fa-times text-xl"></i></button>
+                            </div>
+                            <div className="p-4 md:p-6 overflow-y-auto space-y-4 md:space-y-6 text-gray-800 text-sm md:text-base leading-relaxed">
+                                
+                                <div className="bg-red-50 p-3 md:p-4 rounded-xl border border-red-100">
+                                    <h3 className="font-bold text-red-800 text-base md:text-lg mb-2">1. セトリの作り方</h3>
+                                    <ul className="list-disc pl-5 space-y-1 md:space-y-2">
+                                        <li><b>「曲を選ぶ」タブ:</b> 追加ボタンを押して、今日やる曲を選びます。</li>
+                                        <li><b>「編集・並べ替え」タブ:</b> スマホ版は矢印、PC版はドラッグして順番を入れ替えられます。キーやメモもここで書き換えできます。</li>
+                                    </ul>
+                                </div>
+
+                                <div className="bg-blue-50 p-3 md:p-4 rounded-xl border border-blue-100">
+                                    <h3 className="font-bold text-blue-800 text-base md:text-lg mb-2">2. メンバーにLINEで送る方法</h3>
+                                    <ol className="list-decimal pl-5 space-y-1 md:space-y-2">
+                                        <li>「PDF・印刷」タブを開きます。</li>
+                                        <li><b>「PDFに保存 / 印刷する」</b>の赤いボタンを押します。</li>
+                                        <li>スマホの画面に「PDFとして保存（またはプリント）」と出るので、そのまま保存します。</li>
+                                        <li>保存したPDFファイルを、バンドのグループLINEに送れば完了です！</li>
+                                    </ol>
+                                </div>
+
+                                <div className="bg-yellow-50 p-3 md:p-4 rounded-xl border border-yellow-200">
+                                    <h3 className="font-bold text-yellow-800 text-base md:text-lg mb-2">⚠️ 曲の追加・修正について</h3>
+                                    <p className="font-bold text-base md:text-lg text-black">
+                                        新しい曲をリストに足したい時や、曲名を修正したい時は、ご自身で操作せず <span className="text-red-600 border-b-2 border-red-600">スズナ</span> にお願いしてください！
+                                    </p>
+                                    <p className="text-xs md:text-sm text-gray-600 mt-2">（スズナがデータベースを更新すると、全員のスマホに自動で反映されます）</p>
+                                </div>
+
+                            </div>
+                            <div className="p-3 md:p-4 bg-gray-100 border-t border-gray-200 text-center">
+                                <button onClick={() => setShowHelp(false)} className="px-8 py-2 md:py-3 bg-gray-800 text-white font-bold rounded-xl active:bg-gray-900 shadow-md">閉じる</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
