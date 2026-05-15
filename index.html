@@ -223,7 +223,7 @@
                 const { scrollTop, scrollHeight, clientHeight } = e.target;
                 setScrollPos({
                     isTop: scrollTop <= 5,
-                    isBottom: scrollTop + clientHeight >= scrollHeight - 5
+                    isBottom: Math.ceil(scrollTop + clientHeight) >= scrollHeight - 5
                 });
             };
 
@@ -396,8 +396,9 @@
                 <div className="animate-fade-in print-hidden relative">
                     {renderCountSettings()}
                     
-                    {/* フローティング・スクロール補助ボタン (Searchタブのみ / 位置を少し下に調整 top-[60%]) */}
-                    <div className="fixed right-3 md:right-5 top-[60%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
+                    {/* フローティング・スクロール補助ボタン (Searchタブのみ / 右側真ん中より少し上) */}
+                    <div className="fixed right-3 md:right-5 top-[40%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
+                        {/* 画面下部までスクロールした時だけ「上へ」を表示 */}
                         {!scrollPos.isTop && (
                             <button 
                                 onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })} 
@@ -411,6 +412,7 @@
                             </button>
                         )}
                         
+                        {/* 画面の上部にいる時は「下へ」を常に表示 */}
                         {!scrollPos.isBottom && (
                             <button 
                                 onClick={() => scrollContainerRef.current?.scrollTo({ top: scrollContainerRef.current.scrollHeight, behavior: 'smooth' })} 
@@ -476,7 +478,7 @@
                     {setlist.length === 0 ? (
                         <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
                             <i className="fas fa-list-ul text-3xl text-gray-300 mb-3"></i>
-                            <p className="text-gray-500 font-medium text-sm">まだ曲が選ばれていません。<br/>「曲を選ぶ」タブから追加してください。</p>
+                            <p className="text-gray-500 font-medium text-sm">まだ曲が選ばれていません。<br/>「1. 曲を選ぶ」タブから追加してください。</p>
                         </div>
                     ) : (
                         <div className="space-y-1">
@@ -827,15 +829,15 @@
                         {/* タブナビゲーション */}
                         <div className="flex max-w-4xl mx-auto px-2 pb-2 items-center justify-between">
                             <button onClick={() => setActiveTab('search')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'search' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-search block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">1. </span>曲を選ぶ
+                                <i className="fas fa-search block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="inline">1. </span>曲を選ぶ
                             </button>
                             <i className="fas fa-exchange-alt text-gray-500 text-xs mx-1"></i>
                             <button onClick={() => setActiveTab('edit')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'edit' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-list-ol block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">2. </span>編集・並替
+                                <i className="fas fa-list-ol block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="inline">2. </span>編集・並替
                             </button>
                             <i className="fas fa-exchange-alt text-gray-500 text-xs mx-1"></i>
                             <button onClick={() => setActiveTab('preview')} className={`flex-1 py-2 md:py-3 text-[10px] md:text-sm font-bold rounded-lg transition-all ${activeTab === 'preview' ? 'bg-white text-gray-900 shadow' : 'text-gray-400 hover:bg-gray-800'}`}>
-                                <i className="fas fa-print block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="hidden md:inline">3. </span>印刷画面
+                                <i className="fas fa-print block md:inline md:mr-1 mb-1 md:mb-0 text-sm md:text-base"></i> <span className="inline">3. </span>印刷画面
                             </button>
                         </div>
                     </header>
@@ -862,15 +864,15 @@
                                 <div className="bg-red-50 p-3 md:p-4 rounded-xl border border-red-100">
                                     <h3 className="font-bold text-red-800 text-base md:text-lg mb-2">1. セトリの作り方</h3>
                                     <ul className="list-disc pl-5 space-y-1 md:space-y-2">
-                                        <li><b>「曲を選ぶ」タブ:</b> 追加ボタンを押して、今日やる曲を選びます。</li>
-                                        <li><b>「編集・並べ替え」タブ:</b> スマホ版は矢印、PC版はドラッグして順番を入れ替えられます。キーやメモもここで書き換えできます。</li>
+                                        <li><b>「1. 曲を選ぶ」タブ:</b> 追加ボタンを押して、今日やる曲を選びます。</li>
+                                        <li><b>「2. 編集・並べ替え」タブ:</b> スマホ版は矢印、PC版はドラッグして順番を入れ替えられます。キーやメモもここで書き換えできます。</li>
                                     </ul>
                                 </div>
 
                                 <div className="bg-blue-50 p-3 md:p-4 rounded-xl border border-blue-100">
                                     <h3 className="font-bold text-blue-800 text-base md:text-lg mb-2">2. メンバーにLINEで送る方法</h3>
                                     <ol className="list-decimal pl-5 space-y-1 md:space-y-2">
-                                        <li>「印刷画面」タブを開きます。</li>
+                                        <li>「3. 印刷画面」タブを開きます。</li>
                                         <li><b>「PDFに保存 / 印刷する」</b>の赤いボタンを押します。</li>
                                         <li>スマホの画面に「PDFとして保存（またはプリント）」と出るので、そのまま保存します。</li>
                                         <li>保存したPDFファイルを、バンドのグループLINEに送れば完了です！</li>
