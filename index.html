@@ -82,23 +82,23 @@
         
         .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.4rem; font-weight: bold; padding-top: 4px; }
         .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: flex-end; justify-content: flex-start; padding: 4px 10px 0 10px; border-right: 1px solid #bbb; text-align: left; }
-        .pg-key { grid-column: 3; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
-        .pg-harp { grid-column: 4; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.2rem; font-weight: bold; text-align: center; padding: 4px 2px 2px; }
-        .pg-bpm { grid-column: 5; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
-        .pg-time { grid-column: 6; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
+        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
+        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 4px 2px 2px; }
+        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
+        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
         
-        /* 備考欄：余った縦スペース(1fr)を全部使う */
+        /* 備考欄：楽曲名の下〜行の右端まで全部使う */
         .pg-memo {
-            grid-column: 2;
+            grid-column: 2 / -1;
             grid-row: 2;
             padding: 2px 10px 4px 10px;
             color: #333;
+            text-align: left;
+        }
+        .pg-memo-text {
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
             line-height: 1.25;
-            text-align: left; 
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
         }
 
         /* ヘッダー用 */
@@ -209,6 +209,50 @@
                 );
             }
             return <span>{harpText}</span>;
+        };
+
+        // テキストが指定行数を超える場合、省略せずフォントサイズを縮めて収める
+        const fitTextToLines = (el, baseFontSize, maxLines = 2, minFontSize = 6, step = 0.4) => {
+            if (!el) return baseFontSize;
+            let size = baseFontSize;
+            el.style.fontSize = size + 'px';
+            let guard = 0;
+            while (guard < 60) {
+                const lineHeightPx = parseFloat(getComputedStyle(el).lineHeight) || (size * 1.25);
+                const maxHeight = lineHeightPx * maxLines + 1;
+                if (el.scrollHeight <= maxHeight || size <= minFontSize) break;
+                size = Math.max(minFontSize, size - step);
+                el.style.fontSize = size + 'px';
+                guard++;
+            }
+            return size;
+        };
+
+        // 備考欄：2行に収まるよう自動でフォントサイズを縮小（省略はしない）
+        const AutoFitMemo = ({ text, baseFontSize, maxLines = 2 }) => {
+            const ref = useRef(null);
+            const [fontSize, setFontSize] = useState(baseFontSize);
+
+            useEffect(() => {
+                const el = ref.current;
+                if (!el) { return; }
+                if (!text) { setFontSize(baseFontSize); return; }
+                const finalSize = fitTextToLines(el, baseFontSize, maxLines);
+                setFontSize(finalSize);
+            }, [text, baseFontSize, maxLines]);
+
+            return (
+                <div
+                    ref={ref}
+                    className="pg-memo-text"
+                    data-autofit="true"
+                    data-basesize={baseFontSize}
+                    data-maxlines={maxLines}
+                    style={{ fontSize: `${fontSize}px` }}
+                >
+                    {text}
+                </div>
+            );
         };
 
         const App = () => {
@@ -359,18 +403,33 @@
                 window.print();
             };
 
+            // 印刷直前(beforeprint)：それまで非表示だった印刷専用コンテナの備考欄を
+            // このタイミングで再計測し、2行に収まるようフォントサイズを調整する（省略はしない）
+            useEffect(() => {
+                const handleBeforePrint = () => {
+                    const printMemoEls = document.querySelectorAll('#print-container [data-autofit="true"]');
+                    printMemoEls.forEach((el) => {
+                        const base = parseFloat(el.dataset.basesize) || 13;
+                        const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
+                        fitTextToLines(el, base, maxLines);
+                    });
+                };
+                window.addEventListener('beforeprint', handleBeforePrint);
+                return () => window.removeEventListener('beforeprint', handleBeforePrint);
+            }, [setlist, mainCount, extraCount]);
+
             // 曲数に応じた高さ比率の微調整ロジック（A4・1枚収縮に最適化）
             const getDynamicDimensions = (totalCount) => {
                 if (totalCount <= 6) {
-                    return { rowHeight: '30mm', memoSize: '1.1rem', titleSize: '1.7rem' };
+                    return { rowHeight: '30mm', memoSize: 17.6, titleSize: '1.7rem' };
                 } else if (totalCount <= 9) {
-                    return { rowHeight: '23mm', memoSize: '1.05rem', titleSize: '1.55rem' };
+                    return { rowHeight: '23mm', memoSize: 16.8, titleSize: '1.55rem' };
                 } else if (totalCount <= 12) {
-                    return { rowHeight: '18mm', memoSize: '0.92rem', titleSize: '1.4rem' };
+                    return { rowHeight: '18mm', memoSize: 14.7, titleSize: '1.4rem' };
                 } else if (totalCount <= 15) {
-                    return { rowHeight: '14.5mm', memoSize: '0.82rem', titleSize: '1.3rem' };
+                    return { rowHeight: '14.5mm', memoSize: 13.1, titleSize: '1.3rem' };
                 } else {
-                    return { rowHeight: '12mm', memoSize: '0.72rem', titleSize: '1.15rem' };
+                    return { rowHeight: '12mm', memoSize: 11.5, titleSize: '1.15rem' };
                 }
             };
 
@@ -658,7 +717,7 @@
                                             <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                             <div className="pg-bpm">{song.BPM || '-'}</div>
                                             <div className="pg-time">{song.Time || song.時間 || '-'}</div>
-                                            <div className="pg-memo" style={{ fontSize: dims.memoSize }}>{song['備考・演奏指示'] || ''}</div>
+                                            <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                         </div>
                                     ))}
 
@@ -670,7 +729,7 @@
                                             <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                             <div className="pg-bpm">{song.BPM || '-'}</div>
                                             <div className="pg-time">{song.Time || song.時間 || '-'}</div>
-                                            <div className="pg-memo" style={{ fontSize: dims.memoSize }}>{song['備考・演奏指示'] || ''}</div>
+                                            <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                         </div>
                                     ))}
                                 </div>
@@ -746,7 +805,7 @@
                                     <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                     <div className="pg-bpm">{song.BPM || '-'}</div>
                                     <div className="pg-time">{song.Time || song.時間 || '-'}</div>
-                                    <div className="pg-memo" style={{ fontSize: dims.memoSize }}>{song['備考・演奏指示'] || ''}</div>
+                                    <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                 </div>
                             ))}
 
@@ -758,7 +817,7 @@
                                     <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                     <div className="pg-bpm">{song.BPM || '-'}</div>
                                     <div className="pg-time">{song.Time || song.時間 || '-'}</div>
-                                    <div className="pg-memo" style={{ fontSize: dims.memoSize }}>{song['備考・演奏指示'] || ''}</div>
+                                    <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                 </div>
                             ))}
                         </div>
