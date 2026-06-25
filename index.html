@@ -80,12 +80,12 @@
         }
         .print-grid-row:last-child { border-bottom: none; }
         
-        .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.4rem; font-weight: bold; padding-top: 4px; }
+        .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.4rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
         .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: flex-end; justify-content: flex-start; padding: 4px 10px 0 10px; border-right: 1px solid #bbb; text-align: left; }
-        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
-        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; text-align: center; padding: 4px 2px 2px; }
-        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
-        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; font-size: 1.3rem; font-weight: bold; padding-top: 4px; }
+        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
+        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; text-align: center; padding: 4px 2px 2px; }
+        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
+        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
         
         /* 備考欄：楽曲名の下〜行の右端まで全部使う */
         .pg-memo {
@@ -202,7 +202,7 @@
             const match = harpText.match(/^(.*?)\s*(\(.*?\))$/);
             if (match) {
                 return (
-                    <div className="flex flex-row items-baseline justify-center leading-none whitespace-nowrap">
+                    <div className="flex flex-row items-baseline justify-center whitespace-nowrap">
                         <span className="font-bold">{match[1]}</span>
                         <span style={{ fontSize: '0.7em', marginLeft: '3px' }} className="font-normal">{match[2]}</span>
                     </div>
@@ -418,19 +418,18 @@
                 return () => window.removeEventListener('beforeprint', handleBeforePrint);
             }, [setlist, mainCount, extraCount]);
 
-            // 曲数に応じた高さ比率の微調整ロジック（A4・1枚収縮に最適化）
+            // 曲数に応じてサイズを連続的に拡大縮小（少ない曲数ほど大きく＝余白を減らす）
+            // 基準：10曲のときに従来の「9〜12曲」帯と同じ見た目になるよう調整
             const getDynamicDimensions = (totalCount) => {
-                if (totalCount <= 6) {
-                    return { rowHeight: '30mm', memoSize: 17.6, titleSize: '1.7rem' };
-                } else if (totalCount <= 9) {
-                    return { rowHeight: '23mm', memoSize: 16.8, titleSize: '1.55rem' };
-                } else if (totalCount <= 12) {
-                    return { rowHeight: '18mm', memoSize: 14.7, titleSize: '1.4rem' };
-                } else if (totalCount <= 15) {
-                    return { rowHeight: '14.5mm', memoSize: 13.1, titleSize: '1.3rem' };
-                } else {
-                    return { rowHeight: '12mm', memoSize: 11.5, titleSize: '1.15rem' };
-                }
+                const count = Math.max(1, totalCount);
+                const rawScale = Math.sqrt(10 / count);
+                const scale = Math.min(2.0, Math.max(0.55, rawScale));
+                return {
+                    rowHeight: `${(18 * scale).toFixed(1)}mm`,
+                    memoSize: 14.7 * scale,
+                    titleSize: `${(1.4 * scale).toFixed(2)}rem`,
+                    cellScale: scale,
+                };
             };
 
             const renderCountSettings = () => (
@@ -660,7 +659,8 @@
                 const dims = getDynamicDimensions(totalPrintedCount);
                 const dynamicRowStyle = {
                     flexGrow: 1,
-                    minHeight: dims.rowHeight
+                    minHeight: dims.rowHeight,
+                    '--cell-scale': dims.cellScale
                 };
 
                 return (
@@ -798,7 +798,7 @@
                             </div>
 
                             {setlist.slice(0, mainCount).map((song, i) => (
-                                <div key={`print-real-main-${i}`} className="print-grid-row" style={{ flexGrow: 1, minHeight: dims.rowHeight }}>
+                                <div key={`print-real-main-${i}`} className="print-grid-row" style={{ flexGrow: 1, minHeight: dims.rowHeight, '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">{i + 1}</div>
                                     <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
@@ -810,7 +810,7 @@
                             ))}
 
                             {setlist.slice(mainCount, mainCount + extraCount).map((song, i) => (
-                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ flexGrow: 1, minHeight: dims.rowHeight }}>
+                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ flexGrow: 1, minHeight: dims.rowHeight, '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">予</div>
                                     <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
