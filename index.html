@@ -45,7 +45,7 @@
             .print-hidden { display: none !important; }
             .print-only { display: flex !important; }
             .app-root {
-                min-height: 297mm !important; /* A4の全高 */
+                min-height: 290mm !important; /* A4の全高(297mm)から誤差対策で少し余裕を持たせる */
                 padding-bottom: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -315,21 +315,26 @@
             }, [setlist]);
 
             useEffect(() => {
-                const updateScale = () => {
-                    if (activeTab === 'preview' && previewWrapperRef.current) {
-                        const wrapperWidth = previewWrapperRef.current.clientWidth;
-                        const a4WidthPx = 794; 
-                        if (wrapperWidth < a4WidthPx) {
-                            setPreviewScale(wrapperWidth / a4WidthPx);
-                        } else {
-                            setPreviewScale(1);
-                        }
-                    }
+                if (activeTab !== 'preview') return;
+                const el = previewWrapperRef.current;
+                if (!el) return;
+
+                const a4WidthPx = 794;
+                const applyScale = (width) => {
+                    if (!width || width <= 0) return;
+                    setPreviewScale(width < a4WidthPx ? width / a4WidthPx : 1);
                 };
-                
-                setTimeout(updateScale, 10);
-                window.addEventListener('resize', updateScale);
-                return () => window.removeEventListener('resize', updateScale);
+
+                applyScale(el.clientWidth);
+
+                const observer = new ResizeObserver((entries) => {
+                    for (const entry of entries) {
+                        applyScale(entry.contentRect.width);
+                    }
+                });
+                observer.observe(el);
+
+                return () => observer.disconnect();
             }, [activeTab]);
 
             useEffect(() => {
