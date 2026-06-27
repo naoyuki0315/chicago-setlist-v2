@@ -85,12 +85,12 @@
         }
         .print-grid-row:last-child { border-bottom: none; }
         
-        .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.4rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
+        .pg-no { grid-column: 1; grid-row: 1 / 3; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.4rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; padding-top: 4px; }
         .pg-title { grid-column: 2; grid-row: 1; display: flex; align-items: flex-end; justify-content: flex-start; padding: 4px 10px 0 10px; border-right: 1px solid #bbb; text-align: left; }
-        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
-        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; text-align: center; padding: 4px 2px 2px; }
-        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
-        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; font-size: calc(1.3rem * var(--cell-scale, 1)); font-weight: bold; padding-top: 4px; }
+        .pg-key { grid-column: 3; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; text-align: center; white-space: pre-wrap; padding: 4px 2px 2px; }
+        .pg-harp { grid-column: 4; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; text-align: center; padding: 4px 2px 2px; }
+        .pg-bpm { grid-column: 5; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; border-right: 1px solid #bbb; font-size: calc(1.3rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; padding-top: 4px; }
+        .pg-time { grid-column: 6; grid-row: 1; display: flex; align-items: flex-start; justify-content: center; font-size: calc(1.3rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; padding-top: 4px; }
         
         /* 備考欄：楽曲名の下〜行の右端まで全部使う */
         .pg-memo {
@@ -125,7 +125,13 @@
         }
         .print-grid-header > div:last-child { border-right: none; }
 
-        .print-song-title { font-size: 1.45rem; font-weight: bold; width: 100%; line-height: 1.1; text-align: left; }
+        .print-song-title { font-size: calc(1.4rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); font-weight: bold; width: 100%; line-height: 1.1; text-align: left; }
+        .print-header-title { font-size: calc(1.25rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); }
+        .print-header-meta { font-size: calc(1.4rem * var(--cell-scale, 1) * var(--page-fit-scale, 1)); }
+        .print-header-wrap {
+            padding-bottom: calc(6px * var(--cell-scale, 1) * var(--page-fit-scale, 1));
+            margin-bottom: calc(12px * var(--cell-scale, 1) * var(--page-fit-scale, 1));
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 font-sans">
@@ -289,6 +295,7 @@
             const dragItem = useRef(null);
             const dragOverItem = useRef(null);
             const previewWrapperRef = useRef(null);
+            const previewPageRef = useRef(null);
 
             const handleScroll = (e) => {
                 if (!e.target) return;
@@ -336,6 +343,41 @@
 
                 return () => observer.disconnect();
             }, [activeTab]);
+
+            // プレビューの内容も、実際の印刷と同じく実測してA4 1枚に収まるよう調整する
+            // (印刷結果とプレビューの見た目を一致させるため)
+            useEffect(() => {
+                if (activeTab !== 'preview') return;
+                const pageEl = previewPageRef.current;
+                if (!pageEl) return;
+
+                const timer = setTimeout(() => {
+                    pageEl.style.setProperty('--page-fit-scale', '1');
+                    const memoEls = pageEl.querySelectorAll('[data-autofit="true"]');
+                    memoEls.forEach((el) => {
+                        const base = parseFloat(el.dataset.basesize) || 13;
+                        el.style.fontSize = base + 'px';
+                    });
+
+                    const naturalHeightPx = pageEl.scrollHeight;
+                    const targetMm = 258;
+                    const targetPx = targetMm * (96 / 25.4);
+
+                    let factor = 1;
+                    if (naturalHeightPx > targetPx) {
+                        factor = Math.max(0.45, targetPx / naturalHeightPx);
+                    }
+
+                    pageEl.style.setProperty('--page-fit-scale', String(factor));
+                    memoEls.forEach((el) => {
+                        const base = parseFloat(el.dataset.basesize) || 13;
+                        const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
+                        fitTextShrinkOnly(el, base * factor, maxLines);
+                    });
+                }, 50);
+
+                return () => clearTimeout(timer);
+            }, [activeTab, setlist, mainCount, extraCount]);
 
             useEffect(() => {
                 const timestamp = new Date().getTime();
@@ -434,15 +476,39 @@
                 window.print();
             };
 
-            // 印刷直前(beforeprint)：それまで非表示だった印刷専用コンテナの備考欄を
-            // このタイミングで再計測し、2行を超える場合のみ縮小する（省略はしない）
+            // 印刷直前(beforeprint)：印刷専用コンテナの実際の高さを測定し、
+            // A4 1枚に収まらない場合は備考だけでなく全体(曲名・各セル・ヘッダー)を
+            // 必要な分だけ比例縮小して、確実に1枚に収める（省略はしない）
             useEffect(() => {
                 const handleBeforePrint = () => {
-                    const printMemoEls = document.querySelectorAll('#print-container [data-autofit="true"]');
-                    printMemoEls.forEach((el) => {
+                    const container = document.getElementById('print-container');
+                    if (!container) return;
+
+                    // 1. まず基準(page-fit-scale=1, 備考は基準サイズ)にリセットして自然な高さを測る
+                    container.style.setProperty('--page-fit-scale', '1');
+                    const memoEls = container.querySelectorAll('[data-autofit="true"]');
+                    memoEls.forEach((el) => {
+                        const base = parseFloat(el.dataset.basesize) || 13;
+                        el.style.fontSize = base + 'px';
+                    });
+                    // レイアウト確定後の自然な高さ(px)
+                    const naturalHeightPx = container.scrollHeight;
+
+                    // 2. 目標の高さ(A4より少し安全マージンを取った値)
+                    const targetMm = 258;
+                    const targetPx = targetMm * (96 / 25.4);
+
+                    let factor = 1;
+                    if (naturalHeightPx > targetPx) {
+                        factor = Math.max(0.45, targetPx / naturalHeightPx);
+                    }
+
+                    // 3. 全体に縮小係数を反映
+                    container.style.setProperty('--page-fit-scale', String(factor));
+                    memoEls.forEach((el) => {
                         const base = parseFloat(el.dataset.basesize) || 13;
                         const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
-                        fitTextShrinkOnly(el, base, maxLines);
+                        fitTextShrinkOnly(el, base * factor, maxLines);
                     });
                 };
                 window.addEventListener('beforeprint', handleBeforePrint);
@@ -707,6 +773,7 @@
 
                         <div ref={previewWrapperRef} className="w-full bg-gray-300 p-2 md:p-6 rounded-xl border border-gray-400 shadow-inner overflow-hidden flex justify-center">
                             <div 
+                                ref={previewPageRef}
                                 style={{ 
                                     transform: `scale(${previewScale})`, 
                                     transformOrigin: 'top center',
@@ -721,19 +788,16 @@
                                 className="flex flex-col text-black font-sans"
                             >
                                 <div
-                                    className="border-b-[3px] border-black"
-                                    style={{
-                                        paddingBottom: `${(6 * dims.cellScale).toFixed(1)}px`,
-                                        marginBottom: `${(12 * dims.cellScale).toFixed(1)}px`
-                                    }}
+                                    className="border-b-[3px] border-black print-header-wrap"
+                                    style={{ '--cell-scale': dims.cellScale }}
                                 >
                                     <div className="text-center">
                                         <h1
-                                            className="font-black tracking-widest uppercase"
-                                            style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
+                                            className="font-black tracking-widest uppercase print-header-title"
+                                            style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}
                                         >LIVE SETLIST - CHICAGO</h1>
                                     </div>
-                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: dims.titleSize }}>
+                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1 print-header-meta">
                                         <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                         <div className="tracking-wider">Date:_______ /_______ /_______</div>
                                     </div>
@@ -752,7 +816,7 @@
                                     {mainSongs.map((song, i) => (
                                         <div key={`print-main-${i}`} className="print-grid-row" style={dynamicRowStyle}>
                                             <div className="pg-no">{i + 1}</div>
-                                            <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
+                                            <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
                                             <div className="pg-key">{song.Key || '-'}</div>
                                             <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                             <div className="pg-bpm">{song.BPM || '-'}</div>
@@ -764,7 +828,7 @@
                                     {extraSongs.map((song, i) => (
                                         <div key={`print-extra-${i}`} className="print-grid-row print-extra" style={dynamicRowStyle}>
                                             <div className="pg-no">予</div>
-                                            <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
+                                            <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
                                             <div className="pg-key">{song.Key || '-'}</div>
                                             <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                             <div className="pg-bpm">{song.BPM || '-'}</div>
@@ -818,19 +882,16 @@
                     {/* 実際の印刷用コンテナ */}
                     <div id="print-container" className="print-only">
                         <div
-                            className="print-header border-b-[3px] border-black"
-                            style={{
-                                paddingBottom: `${(6 * dims.cellScale).toFixed(1)}px`,
-                                marginBottom: `${(8 * dims.cellScale).toFixed(1)}px`
-                            }}
+                            className="print-header border-b-[3px] border-black print-header-wrap"
+                            style={{ '--cell-scale': dims.cellScale }}
                         >
                             <div className="text-center">
                                 <h1
-                                    className="font-black tracking-widest uppercase"
-                                    style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
+                                    className="font-black tracking-widest uppercase print-header-title"
+                                    style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}
                                 >LIVE SETLIST - CHICAGO</h1>
                             </div>
-                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: dims.titleSize }}>
+                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1 print-header-meta">
                                 <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                 <div className="tracking-wider">Date:_______ /_______ /_______</div>
                             </div>
@@ -849,7 +910,7 @@
                             {setlist.slice(0, mainCount).map((song, i) => (
                                 <div key={`print-real-main-${i}`} className="print-grid-row" style={{ '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">{i + 1}</div>
-                                    <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
+                                    <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
                                     <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                     <div className="pg-bpm">{song.BPM || '-'}</div>
@@ -861,7 +922,7 @@
                             {setlist.slice(mainCount, mainCount + extraCount).map((song, i) => (
                                 <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">予</div>
-                                    <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
+                                    <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
                                     <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
                                     <div className="pg-bpm">{song.BPM || '-'}</div>
