@@ -644,16 +644,16 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="px-2 py-1 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-2">
+                                            <div className="px-2 py-1 bg-gray-50 border-t border-gray-100 grid grid-cols-[1fr_auto] items-center gap-2">
                                                 {editingNoteIndex === index ? (
-                                                    <div className="flex-1 flex gap-1 items-center">
-                                                        <input type="text" value={tempNoteText} onChange={(e) => setTempNoteText(e.target.value)} className="flex-1 px-2 py-0.5 text-xs border rounded bg-white" placeholder="備考・演奏指示を入力..." />
-                                                        <button onClick={saveNote} className="px-3 py-0.5 bg-green-600 text-white text-xs font-bold rounded shadow">保存</button>
-                                                        <button onClick={() => setEditingNoteIndex(null)} className="px-2 py-0.5 bg-gray-400 text-white text-xs font-bold rounded shadow">キャンセル</button>
+                                                    <div className="col-span-2 flex gap-1 items-center min-w-0">
+                                                        <input type="text" value={tempNoteText} onChange={(e) => setTempNoteText(e.target.value)} className="flex-1 min-w-0 px-2 py-0.5 text-xs border rounded bg-white" placeholder="備考・演奏指示を入力..." />
+                                                        <button onClick={saveNote} className="flex-shrink-0 px-3 py-0.5 bg-green-600 text-white text-xs font-bold rounded shadow">保存</button>
+                                                        <button onClick={() => setEditingNoteIndex(null)} className="flex-shrink-0 px-2 py-0.5 bg-gray-400 text-white text-xs font-bold rounded shadow">キャンセル</button>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex-1 flex items-center justify-between gap-2 text-left">
-                                                        <span className="flex-1 min-w-0 text-xs text-gray-600 truncate">
+                                                    <React.Fragment>
+                                                        <span className="min-w-0 overflow-hidden text-xs text-gray-600 truncate text-left">
                                                             <i className="far fa-comment-dots mr-1 text-gray-400"></i>
                                                             {song['備考・演奏指示'] || <span className="text-gray-300 italic">指示なし</span>}
                                                         </span>
@@ -662,11 +662,11 @@
                                                                 setEditingNoteIndex(index);
                                                                 setTempNoteText(song['備考・演奏指示'] || "");
                                                             }} 
-                                                            className="flex-shrink-0 whitespace-nowrap text-xs text-blue-600 font-bold hover:underline"
+                                                            className="whitespace-nowrap text-xs text-blue-600 font-bold hover:underline justify-self-end"
                                                         >
                                                             編集
                                                         </button>
-                                                    </div>
+                                                    </React.Fragment>
                                                 )}
                                             </div>
                                         </div>
