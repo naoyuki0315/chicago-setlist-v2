@@ -423,10 +423,11 @@
                 const count = Math.max(1, totalCount);
                 const rawScale = Math.sqrt(10 / count);
                 const scale = Math.min(2.0, Math.max(0.55, rawScale));
+                const titleRemValue = 1.4 * scale;
                 return {
                     rowHeight: `${(18 * scale).toFixed(1)}mm`,
-                    memoSize: 14.7 * scale,
-                    titleSize: `${(1.4 * scale).toFixed(2)}rem`,
+                    memoSize: titleRemValue * 16 * 0.8, // 備考は曲名の0.8倍に統一
+                    titleSize: `${titleRemValue.toFixed(2)}rem`,
                     cellScale: scale,
                 };
             };
