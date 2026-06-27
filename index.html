@@ -285,6 +285,7 @@
             const [mainCount, setMainCount] = useState(10);
             const [extraCount, setExtraCount] = useState(3);
             const [previewScale, setPreviewScale] = useState(1);
+            const [pageFitFactor, setPageFitFactor] = useState(1);
             
             const [editingNoteIndex, setEditingNoteIndex] = useState(null);
             const [tempNoteText, setTempNoteText] = useState("");
@@ -344,40 +345,35 @@
                 return () => observer.disconnect();
             }, [activeTab]);
 
-            // プレビューの内容も、実際の印刷と同じく実測してA4 1枚に収まるよう調整する
-            // (印刷結果とプレビューの見た目を一致させるため)
+            // プレビューの内容を実測し、A4 1枚に収まらない場合はpageFitFactorを調整する。
+            // pageFitFactorはプレビューと印刷専用エリアの両方のdimsに使われるため、
+            // ここで決まった縮小率がそのまま印刷結果にも反映される（print側で別途測定する必要がない）
             useEffect(() => {
                 if (activeTab !== 'preview') return;
                 const pageEl = previewPageRef.current;
                 if (!pageEl) return;
 
                 const timer = setTimeout(() => {
-                    pageEl.style.setProperty('--page-fit-scale', '1');
-                    const memoEls = pageEl.querySelectorAll('[data-autofit="true"]');
-                    memoEls.forEach((el) => {
-                        const base = parseFloat(el.dataset.basesize) || 13;
-                        el.style.fontSize = base + 'px';
-                    });
+                    const measuredHeightPx = pageEl.scrollHeight;
+                    if (measuredHeightPx <= 0) return;
 
-                    const naturalHeightPx = pageEl.scrollHeight;
                     const targetMm = 258;
                     const targetPx = targetMm * (96 / 25.4);
 
-                    let factor = 1;
-                    if (naturalHeightPx > targetPx) {
-                        factor = Math.max(0.45, targetPx / naturalHeightPx);
+                    // 現在の係数を基にした自然な高さを逆算し、必要な係数を求める(反復で収束させる)
+                    const impliedNaturalHeight = measuredHeightPx / (pageFitFactor || 1);
+                    let newFactor = 1;
+                    if (impliedNaturalHeight > targetPx) {
+                        newFactor = Math.min(1, Math.max(0.35, targetPx / impliedNaturalHeight));
                     }
 
-                    pageEl.style.setProperty('--page-fit-scale', String(factor));
-                    memoEls.forEach((el) => {
-                        const base = parseFloat(el.dataset.basesize) || 13;
-                        const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
-                        fitTextShrinkOnly(el, base * factor, maxLines);
-                    });
-                }, 50);
+                    if (Math.abs(newFactor - pageFitFactor) > 0.02) {
+                        setPageFitFactor(newFactor);
+                    }
+                }, 80);
 
                 return () => clearTimeout(timer);
-            }, [activeTab, setlist, mainCount, extraCount]);
+            }, [activeTab, setlist, mainCount, extraCount, pageFitFactor]);
 
             useEffect(() => {
                 const timestamp = new Date().getTime();
@@ -476,39 +472,17 @@
                 window.print();
             };
 
-            // 印刷直前(beforeprint)：印刷専用コンテナの実際の高さを測定し、
-            // A4 1枚に収まらない場合は備考だけでなく全体(曲名・各セル・ヘッダー)を
-            // 必要な分だけ比例縮小して、確実に1枚に収める（省略はしない）
+            // 印刷直前(beforeprint)：対応しているブラウザでは、個別の備考が2行を超える場合の
+            // 最終的な微調整として働く(任意のおまけ的処理。動かなくても全体のA4収まりには影響しない)
             useEffect(() => {
                 const handleBeforePrint = () => {
                     const container = document.getElementById('print-container');
                     if (!container) return;
-
-                    // 1. まず基準(page-fit-scale=1, 備考は基準サイズ)にリセットして自然な高さを測る
-                    container.style.setProperty('--page-fit-scale', '1');
                     const memoEls = container.querySelectorAll('[data-autofit="true"]');
                     memoEls.forEach((el) => {
                         const base = parseFloat(el.dataset.basesize) || 13;
-                        el.style.fontSize = base + 'px';
-                    });
-                    // レイアウト確定後の自然な高さ(px)
-                    const naturalHeightPx = container.scrollHeight;
-
-                    // 2. 目標の高さ(A4より少し安全マージンを取った値)
-                    const targetMm = 258;
-                    const targetPx = targetMm * (96 / 25.4);
-
-                    let factor = 1;
-                    if (naturalHeightPx > targetPx) {
-                        factor = Math.max(0.45, targetPx / naturalHeightPx);
-                    }
-
-                    // 3. 全体に縮小係数を反映
-                    container.style.setProperty('--page-fit-scale', String(factor));
-                    memoEls.forEach((el) => {
-                        const base = parseFloat(el.dataset.basesize) || 13;
                         const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
-                        fitTextShrinkOnly(el, base * factor, maxLines);
+                        fitTextShrinkOnly(el, base, maxLines);
                     });
                 };
                 window.addEventListener('beforeprint', handleBeforePrint);
@@ -517,10 +491,13 @@
 
             // 曲数に応じてサイズを連続的に拡大縮小（少ない曲数ほど大きく＝余白を減らす）
             // 基準：10曲のときに従来の「9〜12曲」帯と同じ見た目になるよう調整
-            const getDynamicDimensions = (totalCount) => {
+            // fitFactor: 実測してA4に収まらない場合に追加で掛ける縮小係数(1=補正なし)
+            const getDynamicDimensions = (totalCount, fitFactor = 1) => {
                 const count = Math.max(1, totalCount);
                 const rawScale = Math.sqrt(10 / count);
-                const scale = Math.min(2.0, Math.max(0.55, rawScale));
+                let scale = Math.min(2.0, Math.max(0.55, rawScale));
+                scale = scale * (fitFactor || 1);
+                scale = Math.max(0.35, scale);
                 const titleRemValue = 1.4 * scale;
                 return {
                     rowHeight: `${(18 * scale).toFixed(1)}mm`,
@@ -754,7 +731,7 @@
                 const extraSongs = setlist.slice(mainCount, mainCount + extraCount);
                 const totalPrintedCount = mainSongs.length + extraSongs.length;
                 
-                const dims = getDynamicDimensions(totalPrintedCount);
+                const dims = getDynamicDimensions(totalPrintedCount, pageFitFactor);
                 const dynamicRowStyle = {
                     '--cell-scale': dims.cellScale
                 };
@@ -844,7 +821,7 @@
             };
 
             const totalPrintedCount = setlist.slice(0, mainCount).length + setlist.slice(mainCount, mainCount + extraCount).length;
-            const dims = getDynamicDimensions(totalPrintedCount);
+            const dims = getDynamicDimensions(totalPrintedCount, pageFitFactor);
 
             return (
                 <div className="min-h-screen pb-24 md:pb-6 app-root">
