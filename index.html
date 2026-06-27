@@ -37,7 +37,7 @@
             body { 
                 background-color: white !important; 
                 margin: 0 !important; 
-                padding: 0 10mm !important; /* 上下は中央配置で均等に調整するため0、左右だけ確保 */
+                padding: 10mm !important; /* 上下左右とも固定の余白(中央配置より確実な方式) */
                 color: black !important; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact;
@@ -45,17 +45,14 @@
             .print-hidden { display: none !important; }
             .print-only { display: flex !important; }
             .app-root {
-                min-height: 290mm !important; /* A4の全高(297mm)から誤差対策で少し余裕を持たせる */
+                min-height: 0 !important;
                 padding-bottom: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important; /* 上下中央配置＝余白を均等に */
             }
             
             #print-container {
                 display: flex;
                 flex-direction: column;
-                max-height: 262mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限 */
+                max-height: 255mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限(上下10mm余白を踏まえた安全マージン) */
                 width: 100%;
                 box-sizing: border-box;
                 page-break-inside: avoid;
@@ -358,7 +355,7 @@
                     const measuredHeightPx = contentEl.scrollHeight;
                     if (measuredHeightPx <= 0) return;
 
-                    const targetMm = 258;
+                    const targetMm = 248;
                     const targetPx = targetMm * (96 / 25.4);
 
                     // 現在の係数を基にした自然な高さを逆算し、必要な係数を求める(反復で収束させる)
@@ -860,19 +857,23 @@
                         {activeTab === 'preview' && renderPreviewTab()}
                     </main>
 
-                    {/* 実際の印刷用コンテナ */}
+                    {/* 実際の印刷用コンテナ：Safari等の印刷時にCSS変数(--cell-scale)の計算が
+                        不安定になるケースに備え、フォントサイズ等は直接計算した数値をインラインで指定する */}
                     <div id="print-container" className="print-only">
                         <div
-                            className="print-header border-b-[3px] border-black print-header-wrap"
-                            style={{ '--cell-scale': dims.cellScale }}
+                            className="print-header border-b-[3px] border-black"
+                            style={{
+                                paddingBottom: `${(6 * dims.cellScale).toFixed(1)}px`,
+                                marginBottom: `${(12 * dims.cellScale).toFixed(1)}px`
+                            }}
                         >
                             <div className="text-center">
                                 <h1
-                                    className="font-black tracking-widest uppercase print-header-title"
-                                    style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}
+                                    className="font-black tracking-widest uppercase"
+                                    style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
                                 >LIVE SETLIST - CHICAGO</h1>
                             </div>
-                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1 print-header-meta">
+                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: `${(1.4 * dims.cellScale).toFixed(2)}rem` }}>
                                 <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                 <div className="tracking-wider">Date:_______ /_______ /_______</div>
                             </div>
@@ -889,25 +890,25 @@
                             </div>
 
                             {setlist.slice(0, mainCount).map((song, i) => (
-                                <div key={`print-real-main-${i}`} className="print-grid-row" style={{ '--cell-scale': dims.cellScale }}>
-                                    <div className="pg-no">{i + 1}</div>
-                                    <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
-                                    <div className="pg-key">{song.Key || '-'}</div>
-                                    <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
-                                    <div className="pg-bpm">{song.BPM || '-'}</div>
-                                    <div className="pg-time">{song.Time || song.時間 || '-'}</div>
+                                <div key={`print-real-main-${i}`} className="print-grid-row">
+                                    <div className="pg-no" style={{ fontSize: `${(1.4 * dims.cellScale).toFixed(2)}rem` }}>{i + 1}</div>
+                                    <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: `${(1.4 * dims.cellScale).toFixed(2)}rem` }}>{song.楽曲名 || song.曲名}</div></div>
+                                    <div className="pg-key" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.Key || '-'}</div>
+                                    <div className="pg-harp" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
+                                    <div className="pg-bpm" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.BPM || '-'}</div>
+                                    <div className="pg-time" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.Time || song.時間 || '-'}</div>
                                     <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                 </div>
                             ))}
 
                             {setlist.slice(mainCount, mainCount + extraCount).map((song, i) => (
-                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ '--cell-scale': dims.cellScale }}>
-                                    <div className="pg-no">予</div>
-                                    <div className="pg-title"><div className="print-song-title truncate">{song.楽曲名 || song.曲名}</div></div>
-                                    <div className="pg-key">{song.Key || '-'}</div>
-                                    <div className="pg-harp">{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
-                                    <div className="pg-bpm">{song.BPM || '-'}</div>
-                                    <div className="pg-time">{song.Time || song.時間 || '-'}</div>
+                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra">
+                                    <div className="pg-no" style={{ fontSize: `${(1.4 * dims.cellScale).toFixed(2)}rem` }}>予</div>
+                                    <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: `${(1.4 * dims.cellScale).toFixed(2)}rem` }}>{song.楽曲名 || song.曲名}</div></div>
+                                    <div className="pg-key" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.Key || '-'}</div>
+                                    <div className="pg-harp" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{renderHarpCell(song["Harp (Pos)"] || song.Harp)}</div>
+                                    <div className="pg-bpm" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.BPM || '-'}</div>
+                                    <div className="pg-time" style={{ fontSize: `${(1.3 * dims.cellScale).toFixed(2)}rem` }}>{song.Time || song.時間 || '-'}</div>
                                     <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                 </div>
                             ))}
