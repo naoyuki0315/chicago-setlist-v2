@@ -297,6 +297,7 @@
             const dragOverItem = useRef(null);
             const previewWrapperRef = useRef(null);
             const previewPageRef = useRef(null);
+            const previewContentRef = useRef(null);
 
             const handleScroll = (e) => {
                 if (!e.target) return;
@@ -350,11 +351,11 @@
             // ここで決まった縮小率がそのまま印刷結果にも反映される（print側で別途測定する必要がない）
             useEffect(() => {
                 if (activeTab !== 'preview') return;
-                const pageEl = previewPageRef.current;
-                if (!pageEl) return;
+                const contentEl = previewContentRef.current;
+                if (!contentEl) return;
 
                 const timer = setTimeout(() => {
-                    const measuredHeightPx = pageEl.scrollHeight;
+                    const measuredHeightPx = contentEl.scrollHeight;
                     if (measuredHeightPx <= 0) return;
 
                     const targetMm = 258;
@@ -756,6 +757,7 @@
                                     transformOrigin: 'top center',
                                     width: '794px',
                                     minHeight: '1123px',
+                                    flexShrink: 0,
                                     backgroundColor: 'white',
                                     color: 'black',
                                     padding: '10mm',
@@ -764,28 +766,29 @@
                                 }}
                                 className="flex flex-col text-black font-sans"
                             >
-                                <div
-                                    className="border-b-[3px] border-black print-header-wrap"
-                                    style={{ '--cell-scale': dims.cellScale }}
-                                >
-                                    <div className="text-center">
-                                        <h1
-                                            className="font-black tracking-widest uppercase print-header-title"
-                                            style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}
-                                        >LIVE SETLIST - CHICAGO</h1>
+                                <div ref={previewContentRef}>
+                                    <div
+                                        className="border-b-[3px] border-black print-header-wrap"
+                                        style={{ '--cell-scale': dims.cellScale }}
+                                    >
+                                        <div className="text-center">
+                                            <h1
+                                                className="font-black tracking-widest uppercase print-header-title"
+                                                style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}
+                                            >LIVE SETLIST - CHICAGO</h1>
+                                        </div>
+                                        <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1 print-header-meta">
+                                            <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
+                                            <div className="tracking-wider">Date:_______ /_______ /_______</div>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1 print-header-meta">
-                                        <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
-                                        <div className="tracking-wider">Date:_______ /_______ /_______</div>
-                                    </div>
-                                </div>
 
-                                <div className="flex flex-col border-2 border-black overflow-hidden bg-white">
-                                    <div className="print-grid-header">
-                                        <div>#</div>
-                                        <div className="justify-start pl-[10px]">楽曲名</div>
-                                        <div>Key</div>
-                                        <div>Harp</div>
+                                    <div className="flex flex-col border-2 border-black overflow-hidden bg-white">
+                                        <div className="print-grid-header">
+                                            <div>#</div>
+                                            <div className="justify-start pl-[10px]">楽曲名</div>
+                                            <div>Key</div>
+                                            <div>Harp</div>
                                         <div>BPM</div>
                                         <div>Time</div>
                                     </div>
@@ -813,6 +816,7 @@
                                             <div className="pg-memo"><AutoFitMemo text={song['備考・演奏指示'] || ''} baseFontSize={dims.memoSize} /></div>
                                         </div>
                                     ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>
