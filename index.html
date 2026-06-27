@@ -211,25 +211,34 @@
             return <span>{harpText}</span>;
         };
 
-        // テキストが指定行数を超える場合、省略せずフォントサイズを縮めて収める
-        const fitTextToLines = (el, baseFontSize, maxLines = 2, minFontSize = 6, step = 0.4) => {
-            if (!el) return baseFontSize;
-            let size = baseFontSize;
-            el.style.fontSize = size + 'px';
-            let guard = 0;
-            while (guard < 60) {
-                const lineHeightPx = parseFloat(getComputedStyle(el).lineHeight) || (size * 1.25);
-                const maxHeight = lineHeightPx * maxLines + 1;
-                if (el.scrollHeight <= maxHeight || size <= minFontSize) break;
-                size = Math.max(minFontSize, size - step);
-                el.style.fontSize = size + 'px';
-                guard++;
+        // 親セル(.pg-memo)の実際の高さにぴったり収まる最大のフォントサイズを二分探索で求める
+        // 短いテキストは文字を大きくして余白を消し、長いテキストは省略せず縮小して収める
+        const fitTextToHeight = (el, availableHeight, minFontSize = 6, maxFontSize = 40) => {
+            if (!el || availableHeight <= 0) return minFontSize;
+            let lo = minFontSize, hi = Math.max(minFontSize, maxFontSize);
+
+            el.style.fontSize = lo + 'px';
+            if (el.scrollHeight > availableHeight) {
+                return lo; // 最小サイズでも入らない＝それ以上は縮めず、省略もしない
             }
-            return size;
+
+            let best = lo;
+            for (let i = 0; i < 16; i++) {
+                const mid = (lo + hi) / 2;
+                el.style.fontSize = mid + 'px';
+                if (el.scrollHeight <= availableHeight + 0.5) {
+                    best = mid;
+                    lo = mid;
+                } else {
+                    hi = mid;
+                }
+            }
+            el.style.fontSize = best + 'px';
+            return best;
         };
 
-        // 備考欄：2行に収まるよう自動でフォントサイズを縮小（省略はしない）
-        const AutoFitMemo = ({ text, baseFontSize, maxLines = 2 }) => {
+        // 備考欄：行に確保された縦スペースをぴったり埋めるよう自動でフォントサイズを調整（省略はしない）
+        const AutoFitMemo = ({ text, baseFontSize }) => {
             const ref = useRef(null);
             const [fontSize, setFontSize] = useState(baseFontSize);
 
@@ -237,9 +246,12 @@
                 const el = ref.current;
                 if (!el) { return; }
                 if (!text) { setFontSize(baseFontSize); return; }
-                const finalSize = fitTextToLines(el, baseFontSize, maxLines);
+                const parent = el.parentElement;
+                const availableHeight = parent ? Math.max(0, parent.clientHeight - 6) : 0;
+                const maxSize = Math.max(baseFontSize, baseFontSize * 2.2);
+                const finalSize = fitTextToHeight(el, availableHeight, 6, maxSize);
                 setFontSize(finalSize);
-            }, [text, baseFontSize, maxLines]);
+            }, [text, baseFontSize]);
 
             return (
                 <div
@@ -247,7 +259,6 @@
                     className="pg-memo-text"
                     data-autofit="true"
                     data-basesize={baseFontSize}
-                    data-maxlines={maxLines}
                     style={{ fontSize: `${fontSize}px` }}
                 >
                     {text}
@@ -404,14 +415,16 @@
             };
 
             // 印刷直前(beforeprint)：それまで非表示だった印刷専用コンテナの備考欄を
-            // このタイミングで再計測し、2行に収まるようフォントサイズを調整する（省略はしない）
+            // このタイミングで再計測し、行の縦スペースにぴったり収まるようフォントサイズを調整する（省略はしない）
             useEffect(() => {
                 const handleBeforePrint = () => {
                     const printMemoEls = document.querySelectorAll('#print-container [data-autofit="true"]');
                     printMemoEls.forEach((el) => {
                         const base = parseFloat(el.dataset.basesize) || 13;
-                        const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
-                        fitTextToLines(el, base, maxLines);
+                        const parent = el.parentElement;
+                        const availableHeight = parent ? Math.max(0, parent.clientHeight - 6) : 0;
+                        const maxSize = Math.max(base, base * 2.2);
+                        fitTextToHeight(el, availableHeight, 6, maxSize);
                     });
                 };
                 window.addEventListener('beforeprint', handleBeforePrint);
