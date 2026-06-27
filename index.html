@@ -687,11 +687,20 @@
                                 }}
                                 className="flex flex-col text-black font-sans"
                             >
-                                <div className="border-b-[3px] border-black pb-1.5 mb-3">
+                                <div
+                                    className="border-b-[3px] border-black"
+                                    style={{
+                                        paddingBottom: `${(6 * dims.cellScale).toFixed(1)}px`,
+                                        marginBottom: `${(12 * dims.cellScale).toFixed(1)}px`
+                                    }}
+                                >
                                     <div className="text-center">
-                                        <h1 className="text-xl font-black tracking-widest uppercase" style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}>LIVE SETLIST - CHICAGO</h1>
+                                        <h1
+                                            className="font-black tracking-widest uppercase"
+                                            style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
+                                        >LIVE SETLIST - CHICAGO</h1>
                                     </div>
-                                    <div className="flex justify-between items-end mt-1 text-[11px] font-bold text-gray-800 px-1">
+                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: `${(11 * dims.cellScale).toFixed(1)}px` }}>
                                         <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                         <div className="tracking-wider">Date:_______ /_______ /_______</div>
                                     </div>
@@ -775,11 +784,20 @@
 
                     {/* 実際の印刷用コンテナ */}
                     <div id="print-container" className="print-only">
-                        <div className="print-header border-b-[3px] border-black pb-1.5 mb-2">
+                        <div
+                            className="print-header border-b-[3px] border-black"
+                            style={{
+                                paddingBottom: `${(6 * dims.cellScale).toFixed(1)}px`,
+                                marginBottom: `${(8 * dims.cellScale).toFixed(1)}px`
+                            }}
+                        >
                             <div className="text-center">
-                                <h1 className="text-xl font-black tracking-widest uppercase" style={{ fontFamily: 'Arial Black, Helvetica, sans-serif' }}>LIVE SETLIST - CHICAGO</h1>
+                                <h1
+                                    className="font-black tracking-widest uppercase"
+                                    style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
+                                >LIVE SETLIST - CHICAGO</h1>
                             </div>
-                            <div className="flex justify-between items-end mt-1 text-[11px] font-bold text-gray-800 px-1">
+                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: `${(11 * dims.cellScale).toFixed(1)}px` }}>
                                 <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                 <div className="tracking-wider">Date:_______ /_______ /_______</div>
                             </div>
