@@ -37,14 +37,20 @@
             body { 
                 background-color: white !important; 
                 margin: 0 !important; 
-                padding: 10mm !important; /* コンテンツの内側に余白を確保 */
+                padding: 0 10mm !important; /* 上下は中央配置で均等に調整するため0、左右だけ確保 */
                 color: black !important; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact;
             }
             .print-hidden { display: none !important; }
             .print-only { display: flex !important; }
-            .app-root { min-height: 0 !important; padding-bottom: 0 !important; }
+            .app-root {
+                min-height: 297mm !important; /* A4の全高 */
+                padding-bottom: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important; /* 上下中央配置＝余白を均等に */
+            }
             
             #print-container {
                 display: flex;
@@ -625,8 +631,8 @@
                                                         <button onClick={() => setEditingNoteIndex(null)} className="px-2 py-0.5 bg-gray-400 text-white text-xs font-bold rounded shadow">キャンセル</button>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex-1 flex items-center justify-between text-left">
-                                                        <span className="text-xs text-gray-600 truncate max-w-[70vw]">
+                                                    <div className="flex-1 flex items-center justify-between gap-2 text-left">
+                                                        <span className="flex-1 min-w-0 text-xs text-gray-600 truncate">
                                                             <i className="far fa-comment-dots mr-1 text-gray-400"></i>
                                                             {song['備考・演奏指示'] || <span className="text-gray-300 italic">指示なし</span>}
                                                         </span>
@@ -635,7 +641,7 @@
                                                                 setEditingNoteIndex(index);
                                                                 setTempNoteText(song['備考・演奏指示'] || "");
                                                             }} 
-                                                            className="text-xs text-blue-600 font-bold hover:underline ml-2"
+                                                            className="flex-shrink-0 whitespace-nowrap text-xs text-blue-600 font-bold hover:underline"
                                                         >
                                                             編集
                                                         </button>
@@ -700,7 +706,7 @@
                                             style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
                                         >LIVE SETLIST - CHICAGO</h1>
                                     </div>
-                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: `${(11 * dims.cellScale).toFixed(1)}px` }}>
+                                    <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: dims.titleSize }}>
                                         <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                         <div className="tracking-wider">Date:_______ /_______ /_______</div>
                                     </div>
@@ -797,7 +803,7 @@
                                     style={{ fontFamily: 'Arial Black, Helvetica, sans-serif', fontSize: `${(1.25 * dims.cellScale).toFixed(2)}rem` }}
                                 >LIVE SETLIST - CHICAGO</h1>
                             </div>
-                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: `${(11 * dims.cellScale).toFixed(1)}px` }}>
+                            <div className="flex justify-between items-end mt-1 font-bold text-gray-800 px-1" style={{ fontSize: dims.titleSize }}>
                                 <div>本番曲のTotal Time: <span className="underline ml-0.5">{calculateTotalTime()}</span></div>
                                 <div className="tracking-wider">Date:_______ /_______ /_______</div>
                             </div>
