@@ -143,6 +143,7 @@
         ].map((song, i) => ({ ...song, id: `song_${i}` }));
 
         const SPREADSHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzWOELNEzNkvAb1Nld1Tjzv0_Z5mvRvuQdeH20jy-LYP0cycHgpWcpR6rcSBFqm-5lGKZYLgSmW4cg/pub?gid=842461559&single=true&output=csv";
+        const SETLIST_STORAGE_KEY = "ddm_chicago_setlist_v1";
 
         const parseCSV = (text) => {
             const parseLine = (line) => {
@@ -263,7 +264,18 @@
         const App = () => {
             const [activeTab, setActiveTab] = useState('search');
             const [masterData, setMasterData] = useState([]);
-            const [setlist, setSetlist] = useState([]);
+            const [setlist, setSetlist] = useState(() => {
+                try {
+                    const saved = localStorage.getItem(SETLIST_STORAGE_KEY);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        if (Array.isArray(parsed)) return parsed;
+                    }
+                } catch (e) {
+                    // 読み込み失敗時は空のセトリで開始
+                }
+                return [];
+            });
             const [mainCount, setMainCount] = useState(10);
             const [extraCount, setExtraCount] = useState(3);
             const [previewScale, setPreviewScale] = useState(1);
@@ -292,6 +304,15 @@
                     handleScroll({ target: scrollContainerRef.current });
                 }
             }, [activeTab, masterData, setlist]);
+
+            // 曲の選択・編集内容を変更ごとにブラウザへ保存し、次回開いた時に復元できるようにする
+            useEffect(() => {
+                try {
+                    localStorage.setItem(SETLIST_STORAGE_KEY, JSON.stringify(setlist));
+                } catch (e) {
+                    // 保存失敗時は無視（容量制限などのケース）
+                }
+            }, [setlist]);
 
             useEffect(() => {
                 const updateScale = () => {
@@ -689,7 +710,8 @@
                                     backgroundColor: 'white',
                                     color: 'black',
                                     padding: '10mm',
-                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                                    justifyContent: 'center'
                                 }}
                                 className="flex flex-col text-black font-sans"
                             >
