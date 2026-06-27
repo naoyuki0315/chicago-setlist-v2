@@ -44,11 +44,12 @@
             }
             .print-hidden { display: none !important; }
             .print-only { display: flex !important; }
+            .app-root { min-height: 0 !important; padding-bottom: 0 !important; }
             
             #print-container {
                 display: flex;
                 flex-direction: column;
-                height: 262mm; /* 2枚目にはみ出さないよう少しセーフティに縮小 */
+                max-height: 262mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限 */
                 width: 100%;
                 box-sizing: border-box;
                 page-break-inside: avoid;
@@ -57,7 +58,6 @@
             }
             .print-header { flex-shrink: 0; margin-bottom: 3mm; }
             .print-table-container {
-                flex-grow: 1;
                 display: flex;
                 flex-direction: column;
                 border: 2px solid black;
@@ -73,8 +73,7 @@
         .print-grid-row {
             display: grid;
             grid-template-columns: 6.4% 55.6% 9% 13% 8% 8%;
-            grid-template-rows: auto 1fr; 
-            flex-grow: 1; 
+            grid-template-rows: auto auto; 
             page-break-inside: avoid;
             border-bottom: 1px solid #444;
         }
@@ -211,34 +210,25 @@
             return <span>{harpText}</span>;
         };
 
-        // 親セル(.pg-memo)の実際の高さにぴったり収まる最大のフォントサイズを二分探索で求める
-        // 短いテキストは文字を大きくして余白を消し、長いテキストは省略せず縮小して収める
-        const fitTextToHeight = (el, availableHeight, minFontSize = 6, maxFontSize = 40) => {
-            if (!el || availableHeight <= 0) return minFontSize;
-            let lo = minFontSize, hi = Math.max(minFontSize, maxFontSize);
-
-            el.style.fontSize = lo + 'px';
-            if (el.scrollHeight > availableHeight) {
-                return lo; // 最小サイズでも入らない＝それ以上は縮めず、省略もしない
+        // テキストが指定行数を超える場合のみ、省略せずフォントサイズを縮めて収める（短い場合は拡大しない）
+        const fitTextShrinkOnly = (el, baseFontSize, maxLines = 2, minFontSize = 6, step = 0.4) => {
+            if (!el) return baseFontSize;
+            let size = baseFontSize;
+            el.style.fontSize = size + 'px';
+            let guard = 0;
+            while (guard < 60) {
+                const lineHeightPx = parseFloat(getComputedStyle(el).lineHeight) || (size * 1.25);
+                const maxHeight = lineHeightPx * maxLines + 1;
+                if (el.scrollHeight <= maxHeight || size <= minFontSize) break;
+                size = Math.max(minFontSize, size - step);
+                el.style.fontSize = size + 'px';
+                guard++;
             }
-
-            let best = lo;
-            for (let i = 0; i < 16; i++) {
-                const mid = (lo + hi) / 2;
-                el.style.fontSize = mid + 'px';
-                if (el.scrollHeight <= availableHeight + 0.5) {
-                    best = mid;
-                    lo = mid;
-                } else {
-                    hi = mid;
-                }
-            }
-            el.style.fontSize = best + 'px';
-            return best;
+            return size;
         };
 
-        // 備考欄：行に確保された縦スペースをぴったり埋めるよう自動でフォントサイズを調整（省略はしない）
-        const AutoFitMemo = ({ text, baseFontSize }) => {
+        // 備考欄：基本サイズのまま表示し、2行を超える場合のみ縮小する（省略はしない／短い備考で文字を拡大しない）
+        const AutoFitMemo = ({ text, baseFontSize, maxLines = 2 }) => {
             const ref = useRef(null);
             const [fontSize, setFontSize] = useState(baseFontSize);
 
@@ -246,12 +236,9 @@
                 const el = ref.current;
                 if (!el) { return; }
                 if (!text) { setFontSize(baseFontSize); return; }
-                const parent = el.parentElement;
-                const availableHeight = parent ? Math.max(0, parent.clientHeight - 6) : 0;
-                const maxSize = Math.max(baseFontSize, baseFontSize * 2.2);
-                const finalSize = fitTextToHeight(el, availableHeight, 6, maxSize);
+                const finalSize = fitTextShrinkOnly(el, baseFontSize, maxLines);
                 setFontSize(finalSize);
-            }, [text, baseFontSize]);
+            }, [text, baseFontSize, maxLines]);
 
             return (
                 <div
@@ -259,6 +246,7 @@
                     className="pg-memo-text"
                     data-autofit="true"
                     data-basesize={baseFontSize}
+                    data-maxlines={maxLines}
                     style={{ fontSize: `${fontSize}px` }}
                 >
                     {text}
@@ -415,16 +403,14 @@
             };
 
             // 印刷直前(beforeprint)：それまで非表示だった印刷専用コンテナの備考欄を
-            // このタイミングで再計測し、行の縦スペースにぴったり収まるようフォントサイズを調整する（省略はしない）
+            // このタイミングで再計測し、2行を超える場合のみ縮小する（省略はしない）
             useEffect(() => {
                 const handleBeforePrint = () => {
                     const printMemoEls = document.querySelectorAll('#print-container [data-autofit="true"]');
                     printMemoEls.forEach((el) => {
                         const base = parseFloat(el.dataset.basesize) || 13;
-                        const parent = el.parentElement;
-                        const availableHeight = parent ? Math.max(0, parent.clientHeight - 6) : 0;
-                        const maxSize = Math.max(base, base * 2.2);
-                        fitTextToHeight(el, availableHeight, 6, maxSize);
+                        const maxLines = parseInt(el.dataset.maxlines, 10) || 2;
+                        fitTextShrinkOnly(el, base, maxLines);
                     });
                 };
                 window.addEventListener('beforeprint', handleBeforePrint);
@@ -671,8 +657,6 @@
                 
                 const dims = getDynamicDimensions(totalPrintedCount);
                 const dynamicRowStyle = {
-                    flexGrow: 1,
-                    minHeight: dims.rowHeight,
                     '--cell-scale': dims.cellScale
                 };
 
@@ -756,7 +740,7 @@
             const dims = getDynamicDimensions(totalPrintedCount);
 
             return (
-                <div className="min-h-screen pb-24 md:pb-6">
+                <div className="min-h-screen pb-24 md:pb-6 app-root">
                     <header className="bg-slate-900 text-white shadow-xl border-b-2 border-red-600 sticky top-0 z-40 print-hidden">
                         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
                             <div className="flex items-center space-x-3">
@@ -811,7 +795,7 @@
                             </div>
 
                             {setlist.slice(0, mainCount).map((song, i) => (
-                                <div key={`print-real-main-${i}`} className="print-grid-row" style={{ flexGrow: 1, minHeight: dims.rowHeight, '--cell-scale': dims.cellScale }}>
+                                <div key={`print-real-main-${i}`} className="print-grid-row" style={{ '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">{i + 1}</div>
                                     <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
@@ -823,7 +807,7 @@
                             ))}
 
                             {setlist.slice(mainCount, mainCount + extraCount).map((song, i) => (
-                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ flexGrow: 1, minHeight: dims.rowHeight, '--cell-scale': dims.cellScale }}>
+                                <div key={`print-real-extra-${i}`} className="print-grid-row print-extra" style={{ '--cell-scale': dims.cellScale }}>
                                     <div className="pg-no">予</div>
                                     <div className="pg-title"><div className="print-song-title truncate" style={{ fontSize: dims.titleSize }}>{song.楽曲名 || song.曲名}</div></div>
                                     <div className="pg-key">{song.Key || '-'}</div>
