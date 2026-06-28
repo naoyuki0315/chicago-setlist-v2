@@ -52,7 +52,7 @@
             #print-container {
                 display: flex;
                 flex-direction: column;
-                max-height: 255mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限(上下10mm余白を踏まえた安全マージン) */
+                max-height: 210mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限(iOS Safariが自動で付加するヘッダー/フッター分も考慮した安全マージン) */
                 width: 100%;
                 box-sizing: border-box;
                 page-break-inside: avoid;
@@ -355,7 +355,7 @@
                     const measuredHeightPx = contentEl.scrollHeight;
                     if (measuredHeightPx <= 0) return;
 
-                    const targetMm = 248;
+                    const targetMm = 200;
                     const targetPx = targetMm * (96 / 25.4);
 
                     // 現在の係数を基にした自然な高さを逆算し、必要な係数を求める(反復で収束させる)
