@@ -37,7 +37,7 @@
             body { 
                 background-color: white !important; 
                 margin: 0 !important; 
-                padding: 10mm !important; /* 上下左右とも固定の余白(中央配置より確実な方式) */
+                padding: 0 10mm !important;
                 color: black !important; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact;
@@ -45,19 +45,22 @@
             .print-hidden { display: none !important; }
             .print-only { display: flex !important; }
             .app-root {
-                min-height: 0 !important;
+                min-height: 297mm !important;
                 padding-bottom: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
             }
             
             #print-container {
                 display: flex;
                 flex-direction: column;
-                max-height: 210mm; /* 内容が少なければ自然に短くしてよい。超えた場合のみ抑える上限(iOS Safariが自動で付加するヘッダー/フッター分も考慮した安全マージン) */
+                max-height: 270mm;
                 width: 100%;
                 box-sizing: border-box;
                 page-break-inside: avoid;
                 page-break-after: avoid;
-                overflow: hidden; /* 万一はみ出ても2枚目を作らせない最終安全策 */
+                overflow: hidden;
             }
             .print-header { flex-shrink: 0; margin-bottom: 3mm; }
             .print-table-container {
@@ -355,7 +358,7 @@
                     const measuredHeightPx = contentEl.scrollHeight;
                     if (measuredHeightPx <= 0) return;
 
-                    const targetMm = 200;
+                    const targetMm = 258;
                     const targetPx = targetMm * (96 / 25.4);
 
                     // 現在の係数を基にした自然な高さを逆算し、必要な係数を求める(反復で収束させる)
