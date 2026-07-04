@@ -33,7 +33,7 @@
         @media print {
             @page { 
                 size: A4 portrait; 
-                margin: 10mm;
+                margin: 10mm 14mm; /* 上下10mm・左右14mm(左右にも少し余白) */
             }
             html, body { 
                 background-color: white !important; 
@@ -70,24 +70,32 @@
                 visibility: visible !important;
             }
 
-            /* ページ要素は@pageのmarginに収まる幅で通常配置。余分な高さを持たせない */
-            .preview-page {
+            /* 印刷可能領域(main)。preview-pageを領域高さにしてflexで中身を上下中央に */
+            main, main > .animate-fade-in, .preview-wrapper {
+                display: block !important;
+                width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+            }
+            body .preview-page {
                 position: static !important;
                 transform: none !important; /* 画面プレビューの縮小(scale)は解除 */
                 width: 100% !important;
                 margin: 0 !important;
                 min-height: 0 !important;
-                height: auto !important;
+                height: var(--print-page-height, auto) !important; /* JSで印刷可能領域高さを設定 */
                 box-shadow: none !important;
                 padding: 0 !important;
                 box-sizing: border-box !important;
-                display: block !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important; /* 中身を上下中央に */
                 page-break-inside: avoid;
                 page-break-after: avoid;
                 break-inside: avoid;
                 overflow: hidden !important;
             }
-            .preview-page > * { page-break-inside: avoid; break-inside: avoid; }
+            body .preview-page > * { page-break-inside: avoid; break-inside: avoid; flex: 0 0 auto; }
             .print-extra { color: #555; background-color: #fcfcfc !important; }
         }
 
@@ -385,7 +393,7 @@
                 if (!contentEl) return;
 
                 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-                const targetMm = isIOS ? 192 : 235;
+                const targetMm = isIOS ? 180 : 212;
                 const targetPx = targetMm * (96 / 25.4);
 
                 const timer = setTimeout(() => {
@@ -502,6 +510,15 @@
             };
 
             const handlePrint = () => {
+                // 印刷直前に、印刷可能領域の高さをCSS変数で渡す。
+                // preview-pageがその高さのflexコンテナになり、中身が上下中央に配置される。
+                const pageEl = previewPageRef.current;
+                if (pageEl) {
+                    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+                    // 印刷可能領域の高さ(mm)。iOSはSafariの自動ヘッダー/フッター分を差し引く
+                    const printableMm = isIOS ? 235 : 277;
+                    pageEl.style.setProperty('--print-page-height', `${printableMm}mm`);
+                }
                 window.print();
             };
 
