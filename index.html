@@ -33,23 +33,28 @@
         @media print {
             @page { 
                 size: A4 portrait; 
-                margin: 0mm;
+                margin: 10mm;
             }
             html, body { 
                 background-color: white !important; 
                 margin: 0 !important; 
                 padding: 0 !important;
-                width: 210mm !important;
+                width: auto !important;
                 height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
                 color: black !important; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact;
             }
             /* ヘッダーやボタンなど印刷不要な要素は完全に消す(場所も占有させない) */
             .print-hide-on-print { display: none !important; }
+            /* プレビュータブ以外のタブ内容も念のため消す */
+            .app-root > header { display: none !important; }
 
-            /* preview-pageまでの祖先は装飾を消して素通しにする */
-            .app-root, .preview-wrapper {
+            /* preview-pageまでの祖先は装飾を消して素通しにする(確実に表示) */
+            body .app-root, body .app-root.min-h-screen,
+            .app-root, main, main > .animate-fade-in, .preview-wrapper {
                 position: static !important;
                 background: none !important;
                 border: none !important;
@@ -62,26 +67,25 @@
                 height: auto !important;
                 width: auto !important;
                 max-width: none !important;
+                visibility: visible !important;
             }
-            main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
 
-            /* ページ要素を等倍・中央でA4に配置 */
+            /* ページ要素は@pageのmarginに収まる幅で通常配置。余分な高さを持たせない */
             .preview-page {
-                position: relative !important;
-                left: auto !important;
-                top: auto !important;
+                position: static !important;
                 transform: none !important; /* 画面プレビューの縮小(scale)は解除 */
-                width: 210mm !important;
-                margin: 0 auto !important;
+                width: 100% !important;
+                margin: 0 !important;
                 min-height: 0 !important;
                 height: auto !important;
                 box-shadow: none !important;
-                padding: 12mm 10mm !important;
+                padding: 0 !important;
                 box-sizing: border-box !important;
                 display: block !important;
                 page-break-inside: avoid;
                 page-break-after: avoid;
                 break-inside: avoid;
+                overflow: hidden !important;
             }
             .preview-page > * { page-break-inside: avoid; break-inside: avoid; }
             .print-extra { color: #555; background-color: #fcfcfc !important; }
@@ -552,7 +556,7 @@
             );
 
             const renderSearchTab = () => (
-                <div className="animate-fade-in print-hidden relative">
+                <div className="animate-fade-in relative">
                     {renderCountSettings()}
                     
                     <div className="fixed right-3 md:right-5 top-[40%] transform -translate-y-1/2 flex flex-col gap-3 z-50">
@@ -626,7 +630,7 @@
             );
 
             const renderEditTab = () => (
-                <div className="animate-fade-in print-hidden">
+                <div className="animate-fade-in">
                     {renderCountSettings()}
 
                     {setlist.length === 0 ? (
@@ -641,7 +645,7 @@
                                 return (
                                     <React.Fragment key={song.uniqueId}>
                                         {index === mainCount && (
-                                            <div className="w-full flex justify-center py-1.5 print-hidden">
+                                            <div className="w-full flex justify-center py-1.5">
                                                 <span className="bg-gray-800 text-white text-[10px] font-bold px-3 py-0.5 rounded-full shadow-md">🛑 ここから予備曲</span>
                                             </div>
                                         )}
@@ -750,7 +754,7 @@
                 };
 
                 return (
-                    <div className="animate-fade-in print-hidden flex flex-col items-center">
+                    <div className="animate-fade-in flex flex-col items-center">
                         <div className="print-hide-on-print w-full max-w-4xl flex justify-between items-center bg-white p-3 rounded-lg border border-gray-200 mb-4 shadow-sm">
                             <div className="text-left">
                                 <span className="text-xs text-gray-500 block font-bold">印刷プレビュー表示</span>
@@ -829,7 +833,7 @@
 
             return (
                 <div className="min-h-screen pb-24 md:pb-6 app-root">
-                    <header className="print-hide-on-print bg-slate-900 text-white shadow-xl border-b-2 border-red-600 sticky top-0 z-40 print-hidden">
+                    <header className="print-hide-on-print bg-slate-900 text-white shadow-xl border-b-2 border-red-600 sticky top-0 z-40">
                         <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
                             <div className="flex items-center space-x-3">
                                 <div className="bg-gradient-to-br from-red-600 to-red-800 p-2 rounded-xl shadow-inner border border-red-500">
