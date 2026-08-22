@@ -76,7 +76,7 @@
                 margin: 0 !important;
                 min-height: 0 !important;
                 box-shadow: none !important;
-                padding: 12mm 14mm !important; /* 上下12mm・左右14mmの余白 */
+                padding: 8mm 10mm !important; /* 上下8mm・左右10mmの余白(中央寄せで実質さらに広がる) */
                 box-sizing: border-box !important;
                 display: flex !important;
                 flex-direction: column !important;
@@ -88,6 +88,7 @@
             }
             body .preview-page > * { page-break-inside: avoid; break-inside: avoid; flex: 0 0 auto; }
             .print-extra { color: #555; background-color: #fcfcfc !important; }
+            .print-row-rec { background-color: #fff3cd !important; }
         }
 
         /* --- 指定比率のグリッドレイアウト（IMG_1781.JPG準拠） --- */
@@ -100,6 +101,9 @@
         }
         .print-grid-row:last-child { border-bottom: none; }
         .print-extra { color: #555; background-color: #fcfcfc; }
+        /* 0番：録画ボタン押し忘れ防止リマインダー行 */
+        .print-row-rec { background-color: #fff3cd; }
+        .print-row-rec .print-song-title { color: #b8860b; }
 
         /* 画面表示時のプレビューページ(印刷時は@media printの!importantで上書きされる) */
         .preview-page {
@@ -108,7 +112,7 @@
             flex-shrink: 0;
             background-color: white;
             color: black;
-            padding: 12mm 14mm;
+            padding: 8mm 10mm;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             display: flex;
             flex-direction: column;
@@ -388,7 +392,7 @@
                 if (!contentEl) return;
 
                 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-                const targetMm = isIOS ? 198 : 240;
+                const targetMm = isIOS ? 215 : 236;
                 const targetPx = targetMm * (96 / 25.4);
 
                 const timer = setTimeout(() => {
@@ -801,6 +805,15 @@
                                             <div>Harp</div>
                                         <div>BPM</div>
                                         <div>Time</div>
+                                    </div>
+
+                                    <div className="print-grid-row print-row-rec" style={dynamicRowStyle}>
+                                        <div className="pg-no">0</div>
+                                        <div className="pg-title"><div className="print-song-title truncate">※録画ボタンを押す</div></div>
+                                        <div className="pg-key"></div>
+                                        <div className="pg-harp"></div>
+                                        <div className="pg-bpm"></div>
+                                        <div className="pg-time"></div>
                                     </div>
 
                                     {mainSongs.map((song, i) => (
